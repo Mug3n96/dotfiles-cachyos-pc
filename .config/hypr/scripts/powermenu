@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Power-Menü (Waybar-Knopf und SUPER+SHIFT+E), im Stil des Launchers.
+
+choice=$(printf '%s\n' "󰍃  Abmelden" "󰜉  Neustart" "󰐥  Herunterfahren" \
+    | fuzzel --dmenu --prompt "󰀉  " --placeholder "Sitzung" --lines 3 --width 24)
+
+case "$choice" in
+    *Abmelden)       hyprctl dispatch 'hl.dsp.exit()' ;;
+    *Neustart)       systemctl reboot ;;
+    *Herunterfahren) systemctl poweroff ;;
+esac

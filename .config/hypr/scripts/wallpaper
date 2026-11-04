@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Wallpaper: animiert (mpvpaper) oder Standbild (awww). SUPER+SHIFT+W schaltet um.
+#
+# Das Video ist eine nahtlose 10-s-Schleife, gebaut aus dem Standbild von
+# ~/Bilder/wallpaper-animiert/render.py. `-p -a full` pausiert die Animation, sobald
+# ein Fenster im Vollbild ist (Spiele): dann kostet sie nichts. Nur `-p` reicht unter
+# Hyprland nicht, das dekodiert hinter Vollbildfenstern weiter.
+#
+# Aufruf: wallpaper [start|animated|static|toggle]   (ohne Argument: start)
+#         wallpaper fps 55|165                       Bildrate der Animation wählen (55 = 165 Hz / 3)
+
+still="$HOME/Bilder/wallpaper.png"
+video="$HOME/Bilder/wallpaper-animiert/loop.mp4"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/wallpaper-mode"   # merkt sich die Wahl
+
+animated() {
+    pkill -x awww-daemon
+    pgrep -x mpvpaper >/dev/null && return
+    mpvpaper -p -a full -o "no-audio loop hwdec=auto-safe" '*' "$video" >/dev/null 2>&1 &
+    disown
+}
+
+static() {
+    pkill -x mpvpaper
+    pgrep -x awww-daemon >/dev/null || { awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; }
+    awww img "$still" --transition-type fade --transition-fps 165 >/dev/null 2>&1
+}
+
+can_animate() { command -v mpvpaper >/dev/null && [[ -f $video ]]; }
+
+mkdir -p "$(dirname "$state")"
+case "${1:-start}" in
+    start)
+        if [[ $(cat "$state" 2>/dev/null) != static ]] && can_animate; then animated; else static; fi ;;
+    animated)
+        can_animate || { notify-send -a Wallpaper "Animation nicht möglich" "mpvpaper oder $video fehlt"; exit 1; }
+        echo animated > "$state"; animated ;;
+    static)
+        echo static > "$state"; static ;;
+    toggle)
+        if pgrep -x mpvpaper >/dev/null; then
+            "$0" static;   notify-send -a Wallpaper -t 1500 "Wallpaper" "Standbild"
+        else
+            "$0" animated && notify-send -a Wallpaper -t 1500 "Wallpaper" "Animiert"
+        fi ;;
+    fps)
+        variant="$(dirname "$video")/loop-${2:-}.mp4"
+        [[ -f $variant ]] || { echo "Gibt es nicht: $variant" >&2; exit 1; }
+        ln -sfn "$(basename "$variant")" "$video"
+        pkill -x mpvpaper; sleep 0.3
+        echo animated > "$state"; animated
+        notify-send -a Wallpaper -t 1500 "Wallpaper" "Animation mit $2 fps" ;;
+    *)
+        echo "Aufruf: $(basename "$0") [start|animated|static|toggle|fps N]" >&2; exit 1 ;;
+esac

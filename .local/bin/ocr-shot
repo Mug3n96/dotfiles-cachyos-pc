@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Bereich auswählen → Text per OCR (deu+eng) in die Zwischenablage
+set -euo pipefail
+pkill -x slurp && exit 0   # zweiter Tastendruck bricht ab
+
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+geom=$(slurp -b 2e344080 -c 88c0d0ff -s 88c0d01a -w 2) || exit 0   # Auswahlfarben wie hypr/scripts/screenshot
+grim -g "$geom" "$tmp/raw.png"
+
+# Graustufen, 3x hochskalieren (Tesseract mag ~300 dpi), dunkle Themes invertieren
+mean=$(magick "$tmp/raw.png" -colorspace Gray -format '%[fx:mean]' info:)
+neg=(); awk "BEGIN{exit !($mean < 0.5)}" && neg=(-negate)
+magick "$tmp/raw.png" -colorspace Gray "${neg[@]}" -resize 300% -sharpen 0x1 "$tmp/ocr.png"
+
+text=$(tesseract "$tmp/ocr.png" - -l deu+eng --psm 3 2>/dev/null | sed -e 's/[[:space:]]*$//' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+if [[ -z "${text//[[:space:]]/}" ]]; then
+    notify-send -a OCR -i dialog-warning "OCR" "Kein Text erkannt"
+    exit 1
+fi
+printf '%s' "$text" | wl-copy
+notify-send -a OCR -i edit-copy "Text kopiert" "$(printf '%s' "$text" | head -c 300)"

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Scratchpad-Knopf für die Waybar (linke Insel, neben den Workspaces).
+#
+#   ohne Argument  Modul-Ausgabe: lauscht auf Hyprlands Event-Socket, statt zu pollen
+#   toggle         Linksklick: Scratchpad ein-/ausblenden
+#   send           Rechtsklick: aktives Fenster ins Scratchpad legen
+#
+# Zustände (CSS-Klassen): empty · filled (Fenster darin, Anzahl wird angezeigt) · open
+# Name wie in hypr/lua/binds.lua (SUPER+Minus).
+
+NAME="scratch"
+WS="special:$NAME"
+ICON=$'\U000F0328'   # nf-md-layers
+
+count() {
+    hyprctl workspaces -j | jq --arg w "$WS" '[.[] | select(.name == $w) | .windows] | add // 0'
+}
+
+case "${1:-}" in
+    toggle)
+        if (( $(count) == 0 )); then
+            notify-send -a Scratchpad -t 2500 "Scratchpad ist leer" \
+                "Rechtsklick auf den Knopf (oder SUPER+SHIFT+Minus) legt das aktive Fenster hinein."
+        else
+            hyprctl dispatch "hl.dsp.workspace.toggle_special(\"$NAME\")" >/dev/null
+        fi
+        exit 0 ;;
+    send)
+        hyprctl dispatch "hl.dsp.window.move({ workspace = \"$WS\", follow = false })" >/dev/null
+        exit 0 ;;
+esac
+
+render() {
+    local n open cls text tip
+    n=$(count)
+    open=$(hyprctl monitors -j | jq -r --arg w "$WS" 'any(.[]; .specialWorkspace.name == $w)')
+    if [[ $open == true ]]; then cls=open; elif (( n > 0 )); then cls=filled; else cls=empty; fi
+    text=$ICON; (( n > 0 )) && text="$ICON  $n"
+    if (( n == 0 )); then
+        tip="Scratchpad · leer\nRechtsklick: aktives Fenster hineinlegen"
+    else
+        tip="Scratchpad · $n Fenster\n$(hyprctl clients -j | jq -r --arg w "$WS" \
+            '.[] | select(.workspace.name == $w) | "• \(.class) — \(.title[0:50])"' \
+            | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | paste -sd '\n')\nKlick: ein-/ausblenden"
+    fi
+    jq -cn --arg t "$text" --arg c "$cls" --arg tt "$tip" '{text: $t, class: $c, tooltip: ($tt | gsub("\\\\n"; "\n"))}'
+}
+
+render
+socat -U - "UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" | while read -r event; do
+    case $event in
+        activespecial\>\>*|openwindow\>\>*|closewindow\>\>*|movewindow\>\>*|destroyworkspace\>\>*) render ;;
+    esac
+done

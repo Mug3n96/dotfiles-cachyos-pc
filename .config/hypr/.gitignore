@@ -1,0 +1,6 @@
+# Sicherungen und Editor-Reste
+*.bak
+*.bak-*
+*.swp
+*~
+*.log

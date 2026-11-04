@@ -1,0 +1,14 @@
+/* --- Fix: unsichtbare Buttons & Menüs in Nordic --- */
+button,
+entry,
+combobox,
+treeview,
+menubar,
+menuitem {
+  background-color: #3b4252 !important;
+  color: #d8dee9 !important;
+}
+
+*:hover {
+  background-color: #434c5e !important;
+}

@@ -1,0 +1,10 @@
+[Default]
+save_dir=$HOME/Bilder/Screenshots
+save_filename_format=screenshot_%Y-%m-%d_%H-%M-%S.png
+show_panel=true
+line_size=6
+text_size=18
+text_font=Adwaita Sans
+paint_mode=brush
+early_exit=true
+fill_shape=false

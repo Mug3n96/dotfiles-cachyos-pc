@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Schaltet DP-3 für Moonlight-Streams (Pico 4) auf WQHD@90 und danach zurück.
+# Wird von Sunshine als global_prep_cmd aufgerufen (sunshine.conf).
+#
+# Aufruf: sunshine-display [start|stop]
+#
+# Der HDR-Zustand (~/.config/hypr/scripts/hdr-toggle) bleibt erhalten: beim Start wird das aktuelle
+# Farbpreset gemerkt und beim Stop mit 165 Hz wiederhergestellt.
+
+set -euo pipefail
+
+MON="DP-3"
+STREAM_MODE="2560x1440@90"
+NORMAL_MODE="2560x1440@165"
+STATE="${XDG_RUNTIME_DIR:-/tmp}/sunshine-display.preset"
+
+current_preset() {
+    hyprctl monitors -j | jq -r --arg m "$MON" '.[] | select(.name==$m) | .colorManagementPreset'
+}
+
+# Hyprland ≥ 0.55 mit Lua-Config: Monitore per hl.monitor(), `hyprctl keyword` gibt es nicht mehr.
+# $1 = Modus, $2 = Farbpreset (hdr|srgb), Werte wie in ~/.config/hypr/scripts/hdr-toggle
+apply() {
+    local depth=8 cm=srgb brightness=1.0 saturation=1.0
+    if [[ $2 == hdr ]]; then
+        depth=10 cm=hdr brightness=1.6 saturation=1.05
+    fi
+    hyprctl eval "hl.monitor({ output = '$MON', mode = '$1', position = '0x0', scale = 1,
+        bitdepth = $depth, cm = '$cm', sdrbrightness = $brightness, sdrsaturation = $saturation })" >/dev/null
+}
+
+case "${1:-}" in
+    start)
+        preset=$(current_preset)
+        echo "$preset" > "$STATE"
+        apply "$STREAM_MODE" "$preset"
+        ;;
+    stop)
+        preset=$(cat "$STATE" 2>/dev/null || echo srgb)
+        rm -f "$STATE"
+        apply "$NORMAL_MODE" "$preset"
+        ;;
+    *)
+        echo "Aufruf: $(basename "$0") [start|stop]" >&2
+        exit 1
+        ;;
+esac

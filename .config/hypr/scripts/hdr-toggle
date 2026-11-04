@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# HDR-Toggle für DP-3 (SUPER+F4)
+#
+# HDR bleibt bewusst standardmäßig aus: der S2721DGF ist DisplayHDR 400 (417 nits Peak,
+# kein Local Dimming), dadurch wirken normale SDR-Inhalte im HDR-Modus flau.
+# Für Spiele und Filme lohnt es sich trotzdem, also gezielt zuschalten.
+#
+# Aufruf: hdr-toggle [on|off|toggle|status]   (ohne Argument: toggle)
+
+set -euo pipefail
+
+MON="DP-3"
+MODE="2560x1440@165"
+
+notify() {
+    command -v notify-send >/dev/null && notify-send -a HDR -t 2000 "$1" "$2" || echo "$1: $2"
+}
+
+current_preset() {
+    hyprctl monitors -j | jq -r --arg m "$MON" '.[] | select(.name==$m) | .colorManagementPreset'
+}
+
+# Hyprland ≥ 0.55 mit Lua-Config: Monitore werden per hl.monitor() gesetzt,
+# `hyprctl keyword` gibt es nicht mehr.
+apply() {
+    local depth=8 cm=srgb brightness=1.0 saturation=1.0
+    if [[ $1 == hdr ]]; then
+        depth=10 cm=hdr brightness=1.6 saturation=1.05   # cm=hdr braucht zwingend 10 bit
+    fi
+    hyprctl eval "hl.monitor({ output = '$MON', mode = '$MODE', position = '0x0', scale = 1,
+        bitdepth = $depth, cm = '$cm', sdrbrightness = $brightness, sdrsaturation = $saturation })" >/dev/null
+}
+
+case "${1:-toggle}" in
+    on)     want=hdr ;;
+    off)    want=srgb ;;
+    status) current_preset; exit 0 ;;
+    toggle) [[ "$(current_preset)" == "hdr" ]] && want=srgb || want=hdr ;;
+    *)      echo "Aufruf: $(basename "$0") [on|off|toggle|status]" >&2; exit 1 ;;
+esac
+
+apply "$want"
+
+# Der Modeset braucht einen Moment, bevor hyprctl den neuen Zustand meldet.
+sleep 0.5
+got=$(current_preset)
+
+if [[ "$got" == "$want" ]]; then
+    [[ "$got" == "hdr" ]] \
+        && notify "HDR an" "10 bit · PQ/BT.2020 · 165 Hz" \
+        || notify "HDR aus" "8 bit · sRGB · 165 Hz"
+else
+    notify "HDR-Umschaltung fehlgeschlagen" "Erwartet: $want, ist: $got"
+    exit 1
+fi

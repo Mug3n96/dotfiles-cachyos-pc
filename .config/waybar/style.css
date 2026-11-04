@@ -1,0 +1,178 @@
+/* Waybar · Nord
+ *
+ * Text einfarbig (#d8dee9), Icons gedimmt. Einziger Akzent: #88c0d0 (aktiver
+ * Workspace). Rot/Gelb nur für Zustände (stumm, getrennt, zu heiß, Last).
+ * Maße wie Hyprland: 10 px Abstand, 10 px Rundung, innen 6 px.
+ */
+
+* {
+  font-family: "Adwaita Sans", "Symbols Nerd Font";
+  font-size: 14px;
+  font-feature-settings: "tnum"; /* gleich breite Ziffern: nichts springt */
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+}
+
+window#waybar {
+  background: transparent;
+  color: #d8dee9;
+}
+
+/* Feiner Schatten unter Text und Icons: lesbar auch über hellen Stellen im Wallpaper */
+window#waybar label {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Inseln ────────────────────────────────────────────────────────────── */
+
+/* 35 % Tönung + leichter Blur (Layer-Regel in hypr/lua/rules.lua). Nicht unter
+   0.2, sonst greift ignore_alpha und der Blur fällt weg. */
+.modules-left,
+.modules-center,
+.modules-right {
+  background: rgba(46, 52, 64, 0.35);
+  border: 1px solid rgba(216, 222, 233, 0.08);
+  border-radius: 10px;
+  padding: 0 4px;
+}
+
+/* ── Module ────────────────────────────────────────────────────────────── */
+
+#custom-launcher,
+#submap,
+#clock,
+#pulseaudio,
+#cpu,
+#memory,
+#temperature,
+#network,
+#custom-power {
+  padding: 0 10px;
+  margin: 5px 0;
+  border-radius: 6px;
+}
+
+#custom-launcher,
+#pulseaudio,
+#clock,
+#custom-power {
+  transition: background-color 150ms ease-out;
+}
+
+#custom-launcher:hover,
+#pulseaudio:hover,
+#clock:hover,
+#custom-power:hover {
+  background: rgba(216, 222, 233, 0.08);
+}
+
+#custom-launcher {
+  font-size: 15px;
+  padding: 0 12px 0 10px;
+}
+
+#clock {
+  padding: 0 14px;
+}
+
+/* Tray und Power durch feine Linien abgesetzt */
+#tray {
+  padding: 0 12px 0 8px;
+  margin: 8px 4px 8px 0;
+  border-right: 1px solid rgba(216, 222, 233, 0.12);
+}
+
+#custom-power {
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+/* ── Workspaces ────────────────────────────────────────────────────────── */
+
+#workspaces button {
+  padding: 0 9px;
+  margin: 5px 1px;
+  border-radius: 6px;
+  color: rgba(216, 222, 233, 0.88);
+  background: transparent;
+  font-size: 15px;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+#workspaces button:hover {
+  color: #d8dee9;
+  background: rgba(216, 222, 233, 0.08);
+  box-shadow: none;
+  text-shadow: none;
+}
+
+#workspaces button.active {
+  color: #88c0d0;
+  background: rgba(136, 192, 208, 0.16);
+}
+
+#workspaces button.urgent {
+  color: #bf616a;
+}
+
+/* Scratchpad: wie ein Workspace-Knopf, etwas abgesetzt */
+#custom-scratchpad {
+  padding: 0 9px;
+  margin: 5px 1px 5px 6px;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+#custom-scratchpad.empty {
+  color: rgba(216, 222, 233, 0.5);
+}
+
+#custom-scratchpad.filled {
+  color: rgba(216, 222, 233, 0.88);
+}
+
+#custom-scratchpad.open {
+  color: #88c0d0;
+  background: rgba(136, 192, 208, 0.16);
+}
+
+#custom-scratchpad:hover {
+  color: #d8dee9;
+  background: rgba(216, 222, 233, 0.08);
+}
+
+#submap {
+  color: #88c0d0;
+  background: rgba(136, 192, 208, 0.16);
+  margin-left: 4px;
+}
+
+/* ── Zustände ──────────────────────────────────────────────────────────── */
+
+#pulseaudio.muted,
+#network.disconnected,
+#temperature.critical,
+#cpu.critical,
+#memory.critical {
+  color: #bf616a;
+}
+
+#cpu.warning,
+#memory.warning {
+  color: #ebcb8b;
+}
+
+/* ── Tooltips ──────────────────────────────────────────────────────────── */
+
+tooltip {
+  background: rgba(46, 52, 64, 0.96);
+  border: 1px solid #3b4252;
+  border-radius: 10px;
+}
+
+tooltip label {
+  color: #d8dee9;
+  padding: 4px 6px;
+}

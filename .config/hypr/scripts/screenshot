@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Screenshot → ~/Bilder/Screenshots + Zwischenablage, mit Vorschau-Benachrichtigung.
+# Klick auf "Bearbeiten" öffnet ihn in swappy.
+#
+# Aufruf: screenshot [area|screen]   (Print = screen, SUPER+SHIFT+S = area)
+
+set -uo pipefail
+
+dir="$(xdg-user-dir PICTURES)/Screenshots"
+mkdir -p "$dir"
+file="$dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+
+case "${1:-area}" in
+    area)
+        # Auswahl in den Desktop-Farben (Nord): abgedunkelt, Rahmen im Akzent
+        geom=$(slurp -d -b 2e344080 -c 88c0d0ff -s 88c0d01a -w 2) || exit 0
+        grim -g "$geom" "$file" ;;
+    screen)
+        grim "$file" ;;
+    *)
+        echo "Aufruf: $(basename "$0") [area|screen]" >&2; exit 1 ;;
+esac || exit 1
+
+wl-copy --type image/png < "$file"
+
+action=$(notify-send -a Screenshot -i "$file" -A edit=Bearbeiten \
+    "Screenshot gespeichert" "In der Zwischenablage · ${file/#$HOME/\~}")
+[[ $action == edit ]] && swappy -f "$file" -o "$file"
+exit 0

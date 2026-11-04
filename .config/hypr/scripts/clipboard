@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Zwischenablage-Verlauf (SUPER+V): Eintrag wählen → wieder in die Zwischenablage.
+# Der Verlauf wird im Autostart per `wl-paste --watch cliphist store` gesammelt.
+
+if ! command -v cliphist >/dev/null; then
+    notify-send -a Zwischenablage "cliphist fehlt" "sudo pacman -S cliphist"
+    exit 1
+fi
+
+cliphist list \
+    | fuzzel --dmenu --prompt "󰅍  " --placeholder "Zwischenablage durchsuchen" --width 60 \
+    | cliphist decode \
+    | wl-copy
