@@ -79,6 +79,9 @@ def get_json(url, params=None):
         return json.load(r)
 
 
+_located = {}  # Ort nur einmal auflösen, neu nur wenn sich weather.local ändert
+
+
 def location():
     """(lat, lon, name, geschätzt?) aus weather.local, sonst per IP."""
     try:
@@ -86,7 +89,13 @@ def location():
             spec = f.read().strip()
     except FileNotFoundError:
         spec = ""
+    if spec not in _located:
+        _located.clear()
+        _located[spec] = resolve(spec)
+    return _located[spec]
 
+
+def resolve(spec):
     if spec:
         try:
             lat, lon = (float(x) for x in spec.split(","))
