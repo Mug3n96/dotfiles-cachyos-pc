@@ -81,7 +81,8 @@
   "mpris": {
     "format": "<span fgalpha='88%'>{player_icon}</span>  {dynamic}",
     "format-paused": "<span fgalpha='88%'>󰐊</span>  {dynamic}",
-    "player-icons": { "default": "󰎇", "spotify": "󰓇" },
+    // Brave meldet nur sich selbst, nicht die Seite: Medien in Brave sind meist YouTube
+    "player-icons": { "default": "󰎇", "spotify": "󰓇", "brave": "󰗃" },
     "dynamic-order": ["title", "artist"],
     "dynamic-separator": " – ",
     "dynamic-len": 40,
