@@ -36,9 +36,11 @@ hl.layer_rule({
 
 -- Als Karte über dem Desktop statt bildschirmfüllend: breiter Rand rundherum,
 -- der Desktop dahinter bleibt abgedunkelt sichtbar (decoration.dim_special).
+-- Seitenrand 100 px: zwei Terminals nebeneinander haben je 114 Spalten, genug für
+-- fastfetch (längste Zeile 112). Bei 280 px waren es nur 96.
 hl.workspace_rule({
     workspace = "special:scratch",
-    gaps_out  = { top = 80, right = 280, bottom = 80, left = 280 },
+    gaps_out  = { top = 80, right = 100, bottom = 80, left = 100 },
 })
 
 ------------------------------------------------------------------------------
