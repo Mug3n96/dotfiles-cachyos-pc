@@ -1,4 +1,4 @@
--- Aussehen: Abstände, Rahmen, Schatten, Blur, Animationen
+-- Aussehen: Abstände, Fokus (Glas + Glanzlicht), Blur, Animationen
 --
 -- Leitlinie: ruhig und präzise. Ein Raster (10 px), eine Rundung (10 px), ein Akzent.
 -- Effekte sind kurz und dezent. Im Vollbild-Spiel kosten sie nichts: Direct Scanout
@@ -70,7 +70,7 @@ hl.config({
 })
 
 ------------------------------------------------------------------------------
--- Animationen · kurz (100–150 ms), ohne Nachfedern
+-- Animationen · kurz (100–150 ms), ohne Nachfedern; nur der Fokuswechsel 450 ms
 ------------------------------------------------------------------------------
 
 hl.config({ animations = { enabled = true } })

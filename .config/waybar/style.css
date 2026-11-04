@@ -41,7 +41,9 @@ window#waybar label {
 
 #custom-launcher,
 #submap,
+#custom-weather,
 #clock,
+#mpris,
 #pulseaudio,
 #cpu,
 #memory,
@@ -54,6 +56,8 @@ window#waybar label {
 }
 
 #custom-launcher,
+#custom-weather,
+#mpris,
 #pulseaudio,
 #clock,
 #custom-power {
@@ -61,6 +65,8 @@ window#waybar label {
 }
 
 #custom-launcher:hover,
+#custom-weather:hover,
+#mpris:hover,
 #pulseaudio:hover,
 #clock:hover,
 #custom-power:hover {
@@ -74,6 +80,11 @@ window#waybar label {
 
 #clock {
   padding: 0 14px;
+}
+
+/* Mitte: Wetter | Uhr | Musik. Pausierte Musik tritt zurück, bleibt aber lesbar. */
+#mpris.paused {
+  color: rgba(216, 222, 233, 0.88);
 }
 
 /* Tray und Power durch feine Linien abgesetzt */

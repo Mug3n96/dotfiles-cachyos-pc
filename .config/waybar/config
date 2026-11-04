@@ -12,7 +12,7 @@
   "reload_style_on_change": true,
 
   "modules-left": ["custom/launcher", "hyprland/workspaces", "custom/scratchpad", "hyprland/submap"],
-  "modules-center": ["clock"],
+  "modules-center": ["custom/weather", "clock", "mpris"],
   "modules-right": ["tray", "pulseaudio", "cpu", "memory", "temperature", "network", "custom/power"],
 
   "custom/launcher": {
@@ -66,6 +66,28 @@
         "today":    "<span color='#88c0d0'><b>{}</b></span>"
       }
     }
+  },
+
+  // Wetter von Open-Meteo, alle 15 min. Ort in ~/.config/waybar/weather.local (nicht im Repo)
+  "custom/weather": {
+    "exec": "~/.config/hypr/scripts/waybar-weather",
+    "return-type": "json",
+    "restart-interval": 60
+  },
+
+  // Musik von Spotify, Brave usw. Nur sichtbar, solange etwas läuft oder pausiert ist.
+  // Klick = Pause/Weiter, Scrollen = vorheriger/nächster Titel.
+  // Pausiert zeigt es ▶: das Symbol sagt, was der Klick tut.
+  "mpris": {
+    "format": "<span fgalpha='88%'>{player_icon}</span>  {dynamic}",
+    "format-paused": "<span fgalpha='88%'>󰐊</span>  {dynamic}",
+    "player-icons": { "default": "󰎇", "spotify": "󰓇" },
+    "dynamic-order": ["title", "artist"],
+    "dynamic-separator": " – ",
+    "dynamic-len": 40,
+    "tooltip-format": "{title}\n<span fgalpha='70%'>{artist}</span>",
+    "on-scroll-up": "playerctl previous",
+    "on-scroll-down": "playerctl next"
   },
 
   "tray": {

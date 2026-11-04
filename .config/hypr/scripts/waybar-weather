@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""Wetter für die Waybar (mittlere Insel), Daten von Open-Meteo, ohne API-Key.
+
+Ort: ~/.config/waybar/weather.local (bewusst nicht im Repo), eine Zeile:
+    Stadtname           z. B. "Hamburg"
+    oder Breite,Länge   z. B. "53.55,9.99"
+Ohne Datei wird der Ort grob über die IP geschätzt (ipinfo.io).
+
+Läuft dauerhaft und gibt alle 15 min eine JSON-Zeile für Waybar aus. Ohne Netz
+bleiben die letzten Daten bis zu 3 h stehen, danach blendet sich das Modul aus.
+"""
+
+import html
+import json
+import os
+import sys
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime
+
+CONF    = os.path.expanduser("~/.config/waybar/weather.local")
+CACHE   = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+                       "waybar-weather.json")
+REFRESH = 15 * 60
+RETRY   = 60
+STALE   = 3 * 3600
+
+ACCENT2 = "#81a1c1"
+MONO    = "JetBrainsMono Nerd Font"
+
+# WMO-Wettercode → (Text, Icon Tag, Icon Nacht)
+SUN, MOON = "\U000f0599", "\U000f0594"
+PARTLY, PARTLY_N = "\U000f0595", "\U000f0f31"
+CLOUD, FOG = "\U000f0590", "\U000f0591"
+RAIN, POUR = "\U000f0597", "\U000f0596"
+SNOW, SLEET = "\U000f0598", "\U000f067f"
+STORM = "\U000f067e"
+SUNRISE, SUNSET = "\U000f059c", "\U000f059b"
+
+WMO = {
+    0:  ("Klar",                     SUN,    MOON),
+    1:  ("Überwiegend klar",         PARTLY, PARTLY_N),
+    2:  ("Teils bewölkt",            PARTLY, PARTLY_N),
+    3:  ("Bedeckt",                  CLOUD,  CLOUD),
+    45: ("Nebel",                    FOG,    FOG),
+    48: ("Reifnebel",                FOG,    FOG),
+    51: ("Leichter Nieselregen",     RAIN,   RAIN),
+    53: ("Nieselregen",              RAIN,   RAIN),
+    55: ("Starker Nieselregen",      RAIN,   RAIN),
+    56: ("Gefrierender Niesel",      SLEET,  SLEET),
+    57: ("Gefrierender Niesel",      SLEET,  SLEET),
+    61: ("Leichter Regen",           RAIN,   RAIN),
+    63: ("Regen",                    RAIN,   RAIN),
+    65: ("Starker Regen",            POUR,   POUR),
+    66: ("Gefrierender Regen",       SLEET,  SLEET),
+    67: ("Gefrierender Regen",       SLEET,  SLEET),
+    71: ("Leichter Schneefall",      SNOW,   SNOW),
+    73: ("Schneefall",               SNOW,   SNOW),
+    75: ("Starker Schneefall",       SNOW,   SNOW),
+    77: ("Schneegriesel",            SNOW,   SNOW),
+    80: ("Leichte Regenschauer",     RAIN,   RAIN),
+    81: ("Regenschauer",             POUR,   POUR),
+    82: ("Heftige Regenschauer",     POUR,   POUR),
+    85: ("Leichte Schneeschauer",    SNOW,   SNOW),
+    86: ("Schneeschauer",            SNOW,   SNOW),
+    95: ("Gewitter",                 STORM,  STORM),
+    96: ("Gewitter mit Hagel",       STORM,  STORM),
+    99: ("Gewitter mit Hagel",       STORM,  STORM),
+}
+DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def get_json(url, params=None):
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"User-Agent": "waybar-weather"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.load(r)
+
+
+def location():
+    """(lat, lon, name, geschätzt?) aus weather.local, sonst per IP."""
+    try:
+        with open(CONF) as f:
+            spec = f.read().strip()
+    except FileNotFoundError:
+        spec = ""
+
+    if spec:
+        try:
+            lat, lon = (float(x) for x in spec.split(","))
+            return lat, lon, None, False
+        except ValueError:
+            pass
+        hits = get_json("https://geocoding-api.open-meteo.com/v1/search",
+                        {"name": spec, "count": 1, "language": "de", "format": "json"})
+        if not hits.get("results"):
+            raise LookupError(f"Ort nicht gefunden: {spec}")
+        hit = hits["results"][0]
+        return hit["latitude"], hit["longitude"], hit["name"], False
+
+    ip = get_json("https://ipinfo.io/json")
+    lat, lon = (float(x) for x in ip["loc"].split(","))
+    return lat, lon, ip.get("city"), True
+
+
+def fetch():
+    lat, lon, name, guessed = location()
+    data = get_json("https://api.open-meteo.com/v1/forecast", {
+        "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 3,
+        "current": "temperature_2m,apparent_temperature,weather_code,is_day,"
+                   "wind_speed_10m,relative_humidity_2m",
+        "hourly":  "temperature_2m,weather_code,precipitation_probability,is_day",
+        "daily":   "weather_code,temperature_2m_max,temperature_2m_min,"
+                   "precipitation_probability_max,sunrise,sunset",
+    })
+    data["_name"], data["_guessed"], data["_fetched"] = name, guessed, time.time()
+    return data
+
+
+def icon(code, is_day=1):
+    _, day, night = WMO.get(code, ("", CLOUD, CLOUD))
+    return day if is_day else night
+
+
+def pct(v):
+    return "  –" if v is None else f"{v:3d} %"
+
+
+def render(d, stale=False):
+    cur, hourly, daily = d["current"], d["hourly"], d["daily"]
+    desc = WMO.get(cur["weather_code"], ("Unbekannt",))[0]
+
+    head = f"<b>{html.escape(d['_name'])}</b>  ·  {desc}" if d.get("_name") else f"<b>{desc}</b>"
+    lines = [
+        head,
+        f"Gefühlt {round(cur['apparent_temperature'])}°  ·  Wind {round(cur['wind_speed_10m'])} km/h"
+        f"  ·  Feuchte {cur['relative_humidity_2m']} %",
+        f"{SUNRISE} {daily['sunrise'][0][11:16]}    {SUNSET} {daily['sunset'][0][11:16]}",
+        "",
+        f"<span color='{ACCENT2}'>Nächste Stunden</span>",
+    ]
+
+    # Ab der nächsten vollen Stunde, 6 Stunden weit
+    now = cur["time"][:13]
+    start = next((i for i, t in enumerate(hourly["time"]) if t[:13] == now), 0) + 1
+    rows = []
+    for i in range(start, min(start + 6, len(hourly["time"]))):
+        rows.append(f"{hourly['time'][i][11:13]} Uhr  "
+                    f"{icon(hourly['weather_code'][i], hourly['is_day'][i])}  "
+                    f"{round(hourly['temperature_2m'][i]):3d}°  "
+                    f"{pct(hourly['precipitation_probability'][i])}")
+    lines.append(f"<span font_family='{MONO}'>" + "\n".join(rows) + "</span>")
+
+    lines += ["", f"<span color='{ACCENT2}'>Nächste Tage</span>"]
+    rows = []
+    for i, day in enumerate(daily["time"]):
+        label = ("Heute", "Morgen")[i] if i < 2 else DAYS[datetime.fromisoformat(day).weekday()]
+        rows.append(f"{label:<6}  {icon(daily['weather_code'][i])}  "
+                    f"{round(daily['temperature_2m_max'][i]):3d}° / {round(daily['temperature_2m_min'][i]):3d}°  "
+                    f"{pct(daily['precipitation_probability_max'][i])}")
+    lines.append(f"<span font_family='{MONO}'>" + "\n".join(rows) + "</span>")
+
+    notes = []
+    if d.get("_guessed"):
+        notes.append("Ort per IP geschätzt · fester Ort: ~/.config/waybar/weather.local")
+    if stale:
+        notes.append("Stand " + datetime.fromtimestamp(d["_fetched"]).strftime("%H:%M") + ", kein Netz")
+    if notes:
+        lines += [""] + [f"<span fgalpha='70%'>{n}</span>" for n in notes]
+
+    return {
+        "text":    f"<span fgalpha='88%'>{icon(cur['weather_code'], cur['is_day'])}</span>  "
+                   f"{round(cur['temperature_2m'])}°",
+        "tooltip": "\n".join(lines),
+        "class":   "stale" if stale else "fresh",
+    }
+
+
+def emit(obj):
+    print(json.dumps(obj, ensure_ascii=False), flush=True)
+
+
+def load_cache():
+    try:
+        with open(CACHE) as f:
+            d = json.load(f)
+        return d if time.time() - d["_fetched"] < STALE else None
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def wait(seconds):
+    # In kleinen Schritten gegen die Uhrzeit warten: nach dem Aufwachen aus dem
+    # Standby wird sofort aktualisiert statt erst nach Ablauf der Restzeit.
+    due = time.time() + seconds
+    while time.time() < due:
+        time.sleep(min(30, max(1, due - time.time())))
+
+
+def main():
+    cached = load_cache()
+    if cached:
+        emit(render(cached, stale=True))
+
+    while True:
+        try:
+            data = fetch()
+            os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+            with open(CACHE, "w") as f:
+                json.dump(data, f)
+            emit(render(data))
+            wait(REFRESH)
+        except Exception as e:  # Netz weg, Dienst down, Ort unbekannt
+            print(f"waybar-weather: {e}", file=sys.stderr)
+            cached = load_cache()
+            emit(render(cached, stale=True) if cached else {"text": "", "tooltip": ""})
+            wait(RETRY)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass

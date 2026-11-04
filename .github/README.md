@@ -5,8 +5,8 @@
 > **English:** Personal dotfiles for a CachyOS desktop running **Hyprland ≥ 0.55 with the new Lua config**
 > (`hyprland.lua`; hyprlang/`hyprland.conf` was removed in 0.57). Comments and docs are in German, but the
 > config may be a useful reference if you are migrating: modular Lua setup, generated window rules, a Lua-based
-> "sort windows" bind, ported `hyprctl` scripts (`keyword` → `eval`), a Waybar scratchpad button and a local
-> wallpaper animator. Hardware-specific bits (monitor `DP-3`, AMD GPU, Sunshine) need adapting.
+> "sort windows" bind, ported `hyprctl` scripts (`keyword` → `eval`), a Waybar scratchpad button, weather
+> (Open-Meteo, no API key) and media in the bar, and a local wallpaper animator. Hardware-specific bits (monitor `DP-3`, AMD GPU, Sunshine) need adapting.
 
 ![Desktop: zwei Terminals, Waybar mit drei Inseln](screenshots/desktop.webp)
 ![Launcher und Benachrichtigung mit Milchglas](screenshots/launcher.webp)
@@ -36,12 +36,12 @@
 | `.config/hypr/hyprland.lua` | Einstieg, lädt nur die Module |
 | `.config/hypr/lua/theme.lua` | Farben und Maße, die eine Quelle für alles Optische |
 | `.config/hypr/lua/system.lua` | Monitor, Umgebungsvariablen, Eingabe, Autostart |
-| `.config/hypr/lua/look.lua` | Abstände, Rahmen, Schatten, Blur, Animationen |
+| `.config/hypr/lua/look.lua` | Abstände, Fokus (Glas + Glanzlicht), Blur, Animationen |
 | `.config/hypr/lua/rules.lua` | Fenster-, Layer- und Workspace-Regeln, Workspace-Zuordnung, SUPER+O |
 | `.config/hypr/lua/binds.lua` | Tastenkürzel |
 | `.config/hypr/workspaces.lua` | **Welche App auf welchem Workspace landet** – die Datei zum Anfassen |
-| `.config/hypr/scripts/` | `hdr-toggle`, `screenshot`, `powermenu`, `clipboard`, `wallpaper`, `waybar-scratchpad` |
-| `.config/waybar/` | Leiste: drei Inseln, Scratchpad-Knopf |
+| `.config/hypr/scripts/` | `hdr-toggle`, `screenshot`, `powermenu`, `clipboard`, `wallpaper`, `waybar-scratchpad`, `waybar-weather` |
+| `.config/waybar/` | Leiste: drei Inseln, Scratchpad-Knopf, in der Mitte Wetter · Uhr · Musik |
 | `.config/dunst/dunstrc` | Benachrichtigungen |
 | `.config/fuzzel/fuzzel.ini` | Launcher (auch für Power-Menü und Zwischenablage) |
 | `.config/alacritty/alacritty.toml` | Terminal |
@@ -160,6 +160,8 @@ Funktionen auch bei gesperrtem Bildschirm. Lautstärke in 3-%-Schritten, maximal
 | Workspace-Symbol | Zum Workspace wechseln |
 | Ebenen-Symbol (Scratchpad) | **Klick:** ein-/ausblenden · **Rechtsklick:** aktives Fenster hineinlegen. Die Zahl zeigt, wie viele Fenster darin liegen. |
 | Uhr | Darüberfahren zeigt den Kalender mit Kalenderwochen |
+| Wetter (links der Uhr) | Darüberfahren zeigt gefühlte Temperatur, Wind, Sonnenauf- und -untergang, die nächsten 6 Stunden und 3 Tage |
+| Musik (rechts der Uhr, nur wenn etwas läuft) | **Klick:** Pause/Weiter · **Mausrad:** vorheriger/nächster Titel. Pausiert zeigt es ▶ |
 | Lautstärke | **Klick:** Pavucontrol · **Rechtsklick:** stumm · **Mausrad:** lauter/leiser |
 | RAM, Temperatur, Netzwerk | Darüberfahren zeigt Details (z. B. IP-Adresse) |
 | Power-Symbol rechts | Power-Menü |
@@ -264,10 +266,10 @@ in Waybar, Dunst, Fuzzel und Alacritty.
 | Rolle | Farbe | Verwendung |
 |---|---|---|
 | Fläche | `#2e3440` | Hintergründe (Nord Polar Night) |
-| Erhöht | `#3b4252` | Auswahl, inaktiver Rahmen |
+| Erhöht | `#3b4252` | Auswahl, Tooltip-Rahmen |
 | Gedämpft | `#4c566a` | Nebensächliches |
 | Text | `#d8dee9` | Schrift (Nord Snow Storm) |
-| **Akzent** | `#88c0d0` → `#81a1c1` | aktiver Rahmen, aktiver Workspace, Launcher-Rahmen – sonst nirgends |
+| **Akzent** | `#88c0d0` → `#81a1c1` | Glanzlicht am aktiven Fenster, aktiver Workspace, Launcher-Rahmen – sonst nirgends |
 | Fehler | `#bf616a` | nur Zustände: stumm, getrennt, zu heiß |
 | Warnung | `#ebcb8b` | nur Zustände: hohe Last |
 
@@ -275,14 +277,18 @@ in Waybar, Dunst, Fuzzel und Alacritty.
 |---|---|
 | Abstand | 10 px überall: zum Bildschirmrand, zwischen Fenstern (2 × 5), um die Leiste |
 | Rundung | 10 px außen, 6 px innen (Knöpfe in der Leiste, Auswahl im Launcher) |
-| Rahmen | 2 px, aktiv als Verlauf im Akzent |
+| Fokus | aktives Fenster massiv, oben 2 px Glanzlicht im Akzent (läuft zu den Seiten aus); inaktive mattes Glas |
 | Schrift | Adwaita Sans (Oberfläche), JetBrains Mono Nerd Font (Terminal, Icons) |
 | Themes | Nordic (GTK), Nordic (Kvantum/Qt), Nordzy-dark (Icons), Nordzy-cursors |
 
-**Effekte:** Animationen 100–150 ms ohne Nachfedern. Milchglas (Blur) nur hinter Leiste, Launcher und
-Benachrichtigungen, nie hinter Fenstern. Die Leiste ist zu 35 % getönt, der Blur selbst leicht abgedunkelt,
-damit Text auch über hellen Stellen im Wallpaper lesbar bleibt. Das aktive Fenster wirft einen kräftigeren
-Schatten als die anderen.
+**Tiefe durch Material statt Schatten:** Das aktive Fenster ist massiv, inaktive Fenster sind mattes Glas
+(88 % Deckkraft, dahinter weichgezeichnet). Beim Fokuswechsel wird das Fenster in 450 ms sichtbar fest, und
+gleichzeitig blendet das Glanzlicht an der Oberkante ein. Bilder, Videos, Spiele und Streams bleiben immer
+massiv (`always-opaque` in `rules.lua`). Keine Schatten, keine vollen Rahmen.
+
+**Effekte:** Sonst Animationen 100–150 ms ohne Nachfedern. Milchglas auch hinter Leiste, Launcher und
+Benachrichtigungen. Die Leiste ist zu 35 % getönt, der Blur selbst leicht abgedunkelt, damit Text auch über
+hellen Stellen im Wallpaper lesbar bleibt.
 
 ---
 
@@ -309,7 +315,7 @@ Das Repo ist ein **Bare-Repo**: die Dateien liegen an ihrem normalen Ort im Home
 # Offizielle Repos (unter CachyOS sind awww und mpvpaper dabei, auf reinem Arch evtl. AUR)
 sudo pacman -S --needed hyprland xdg-desktop-portal-hyprland hyprpolkitagent \
     dunst fuzzel alacritty awww mpvpaper \
-    grim slurp swappy wl-clipboard cliphist jq socat libnotify xdg-user-dirs \
+    grim slurp swappy wl-clipboard cliphist jq socat python libnotify xdg-user-dirs \
     wireplumber playerctl pavucontrol network-manager-applet kvantum \
     adwaita-fonts ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols \
     tesseract tesseract-data-deu tesseract-data-eng imagemagick
@@ -363,6 +369,7 @@ Dann Hyprland neu starten (abmelden und wieder anmelden).
 |---|---|
 | **Monitor** (Ausgang, Auflösung, Hz) | `lua/system.lua` → `hl.monitor`, außerdem `scripts/hdr-toggle` und `.local/bin/sunshine-display` |
 | **GPU** (nicht AMD) | `lua/system.lua` → `LIBVA_DRIVER_NAME` entfernen bzw. anpassen |
+| **Wetter-Ort** | `~/.config/waybar/weather.local` anlegen, eine Zeile: Stadt (`Hamburg`) oder `Breite,Länge`. Ohne Datei wird der Ort per IP geschätzt. Die Datei bleibt lokal (`.gitignore`) |
 | **CPU-Temperatur** in der Leiste | `waybar/config` → `hwmon-path-abs` (hier `k10temp` für AMD; Pfad mit `ls /sys/class/hwmon/*/name` finden) |
 | **Tastaturlayout** | `lua/system.lua` → `kb_layout`/`kb_variant` (hier `us`/`intl`) |
 | **Apps auf F-Tasten** | `lua/binds.lua` → Abschnitt „Apps und Werkzeuge“ |
