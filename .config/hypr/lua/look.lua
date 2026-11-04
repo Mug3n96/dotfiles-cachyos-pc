@@ -13,9 +13,11 @@ hl.config({
         gaps_in     = t.gap_in,
         gaps_out    = t.gap_out,
         border_size = t.border,
+        -- Fokus als Licht von oben: nur die Oberkante des aktiven Fensters leuchtet im
+        -- Akzent und läuft an den Seiten aus (Verlauf 90°). Inaktive Fenster: keine Kante.
         col = {
-            active_border   = { colors = { rgba(c.accent), rgba(c.accent2) }, angle = 45 },
-            inactive_border = rgba(c.surface),
+            active_border   = { colors = { rgba(c.accent, 0.9), rgba(c.accent2, 0) }, angle = 90 },
+            inactive_border = rgba(c.base, 0),
         },
         -- Hauptschalter für Tearing. Wirkt nur für Fenster mit `immediate` (rules.lua).
         allow_tearing = true,
@@ -26,18 +28,15 @@ hl.config({
         rounding_power = 2,
         dim_special    = 0.4, -- Desktop hinter dem offenen Scratchpad abdunkeln
 
-        -- Weicher Schatten. Das aktive Fenster wirft einen kräftigeren als die
-        -- anderen, so steht der Fokus auch ohne Farbe im Vordergrund.
-        shadow = {
-            enabled        = true,
-            range          = 18,
-            render_power   = 3,
-            color          = "rgba(00000073)",
-            color_inactive = "rgba(00000038)",
-        },
+        -- Tiefe durch Material statt Schatten: das aktive Fenster ist massiv, inaktive
+        -- werden mattes Glas (durchscheinend, dahinter weichgezeichnet). Beim Fokuswechsel
+        -- blendet das Fenster in 150 ms von Glas zu massiv. Ausnahmen (immer massiv): rules.lua.
+        active_opacity   = 1.0,
+        inactive_opacity = 0.88,
+        shadow           = { enabled = false },
 
-        -- Blur gibt es nur hinter Leiste, Launcher und Benachrichtigungen
-        -- (Layer-Regeln in rules.lua). Fenster sind davon ausgenommen.
+        -- Blur hinter Leiste, Launcher, Benachrichtigungen (Layer-Regeln in rules.lua)
+        -- und hinter inaktiven Fenstern (das Glas). Massive Fenster kosten keinen Blur.
         blur = {
             enabled           = true,
             -- Effektiver Radius ≈ size × 2^passes ≈ 24 px: Text dahinter verschwindet,
@@ -92,4 +91,6 @@ hl.animation({ leaf = "layersOut",        enabled = true,  speed = 1.0, bezier =
 hl.animation({ leaf = "workspaces",       enabled = true,  speed = 1.5, bezier = "out",    style = "slidefade 12%" })
 hl.animation({ leaf = "specialWorkspace", enabled = true,  speed = 1.5, bezier = "out",    style = "slidefadevert 12%" })
 hl.animation({ leaf = "border",           enabled = true,  speed = 1.5, bezier = "out" })
-hl.animation({ leaf = "borderangle",      enabled = false })
+-- Glanzlicht schwingt beim Fokuswechsel einmal ein (once). Nie "loop": das erzwingt
+-- dauerhaftes Rendern mit 165 Hz, auch im Spiel.
+hl.animation({ leaf = "borderangle",      enabled = true,  speed = 8,   bezier = "out",    style = "once" })

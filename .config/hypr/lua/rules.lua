@@ -45,12 +45,15 @@ hl.workspace_rule({
 -- Fenster: allgemein
 ------------------------------------------------------------------------------
 
--- Blur nur für die Layer oben, nie hinter Fenstern.
+-- Immer massiv, auch wenn inaktiv: bei Bildern, Videos, Spielen und Streams stört
+-- das Glas (look.lua: inactive_opacity).
 hl.window_rule({
-    name    = "no-blur-windows",
-    match   = { class = ".*" },
-    no_blur = true,
+    name   = "always-opaque",
+    match  = { class = "^(BambuStudio|mpv|gimp.*|org\\.kde\\.krita|com\\.obsproject\\.Studio|steam_app_.*|overwatch\\.exe|gamescope|scrcpy|Waydroid|waydroid\\..*)$" },
+    opaque = true,
 })
+hl.window_rule({ name = "opaque-video", match = { content = "video" }, opaque = true })
+hl.window_rule({ name = "opaque-game",  match = { content = "game" },  opaque = true })
 
 -- Kleine Werkzeugfenster schweben zentriert, statt eine Bildschirmhälfte zu belegen.
 hl.window_rule({
