@@ -30,7 +30,7 @@ hl.config({
 
         -- Tiefe durch Material statt Schatten: das aktive Fenster ist massiv, inaktive
         -- werden mattes Glas (durchscheinend, dahinter weichgezeichnet). Beim Fokuswechsel
-        -- blendet das Fenster in 150 ms von Glas zu massiv. Ausnahmen (immer massiv): rules.lua.
+        -- wird das Fenster in 450 ms sichtbar fest (fadeSwitch unten). Ausnahmen: rules.lua.
         active_opacity   = 1.0,
         inactive_opacity = 0.88,
         shadow           = { enabled = false },
@@ -78,6 +78,8 @@ hl.config({ animations = { enabled = true } })
 -- Schnell los, weich aus: fühlt sich direkt an, ohne hart zu stoppen.
 hl.curve("out",    { type = "bezier", points = { { 0.22, 1 }, { 0.36, 1 } } })
 hl.curve("linear", { type = "bezier", points = { { 0, 0 },    { 1, 1 } } })
+-- Sanft los, sanft aus: für den Fokuswechsel, der bewusst wahrnehmbar sein soll.
+hl.curve("smooth", { type = "bezier", points = { { 0.45, 0 }, { 0.25, 1 } } })
 
 -- speed: 1 = 100 ms
 hl.animation({ leaf = "global",           enabled = true,  speed = 1.5, bezier = "out" })
@@ -90,7 +92,10 @@ hl.animation({ leaf = "layersIn",         enabled = true,  speed = 1.5, bezier =
 hl.animation({ leaf = "layersOut",        enabled = true,  speed = 1.0, bezier = "linear", style = "fade" })
 hl.animation({ leaf = "workspaces",       enabled = true,  speed = 1.5, bezier = "out",    style = "slidefade 12%" })
 hl.animation({ leaf = "specialWorkspace", enabled = true,  speed = 1.5, bezier = "out",    style = "slidefadevert 12%" })
-hl.animation({ leaf = "border",           enabled = true,  speed = 1.5, bezier = "out" })
--- Glanzlicht schwingt beim Fokuswechsel einmal ein (once). Nie "loop": das erzwingt
--- dauerhaftes Rendern mit 165 Hz, auch im Spiel.
-hl.animation({ leaf = "borderangle",      enabled = true,  speed = 8,   bezier = "out",    style = "once" })
+-- Fokuswechsel: das Fenster wird von Glas zu massiv, und gleichzeitig blendet das
+-- Glanzlicht oben ein. Gleiche Dauer, gleiche Kurve, damit es eine Bewegung ist.
+hl.animation({ leaf = "fadeSwitch",       enabled = true,  speed = 4.5, bezier = "smooth" })
+hl.animation({ leaf = "border",           enabled = true,  speed = 4.5, bezier = "smooth" })
+-- Kein Schwingen des Glanzlichts: "once" wirkte hakelig, "loop" würde dauerhaft mit
+-- 165 Hz rendern lassen, auch im Spiel.
+hl.animation({ leaf = "borderangle",      enabled = false })
