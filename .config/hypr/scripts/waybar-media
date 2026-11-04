@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""Musik/Video für die Waybar (mittlere Insel), Ersatz für Waybars mpris-Modul.
+
+Waybars mpris bleibt stehen, sobald der zuletzt aktive Player "gestoppt" meldet
+(Brave beim Schließen eines Tabs): update() überspringt dann einfach, statt das
+Modul auszublenden. Dieses Skript zeigt:
+  1. den Player, der gerade spielt (bei mehreren: der zuletzt gestartete),
+  2. sonst den zuletzt pausierten, mit ▶ (das Symbol sagt, was der Klick tut),
+  3. sonst nichts. Gestoppte und geschlossene Player verschwinden sofort.
+
+Aufruf:
+  waybar-media                   Dauerbetrieb für Waybar (JSON-Zeilen)
+  waybar-media play-pause|next|previous   steuert genau den angezeigten Player
+"""
+
+import html
+import json
+import os
+import subprocess
+import sys
+import time
+
+STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "waybar-media.player")
+
+ICONS = {
+    "spotify": "\U000f04c7",
+    "brave":   "\U000f01e7",  # Brave meldet nicht die Seite, ein Brave-Logo hat die Nerd Font nicht
+}
+ICON_DEFAULT = "\U000f0387"   # Note
+ICON_PAUSED  = "\U000f040a"   # ▶
+TITLE_MAX, ARTIST_MAX = 34, 20
+
+
+def control(cmd):
+    try:
+        with open(STATE) as f:
+            instance = f.read().strip()
+    except FileNotFoundError:
+        instance = ""
+    args = ["playerctl"] + (["-p", instance] if instance else []) + [cmd]
+    subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+if len(sys.argv) > 1:
+    control(sys.argv[1])
+    sys.exit(0)
+
+
+import gi  # noqa: E402  (nur im Dauerbetrieb nötig)
+gi.require_version("Playerctl", "2.0")
+from gi.repository import GLib, Playerctl  # noqa: E402
+
+PLAYING = Playerctl.PlaybackStatus.PLAYING
+PAUSED  = Playerctl.PlaybackStatus.PAUSED
+
+manager = Playerctl.PlayerManager()
+active_at = {}  # Instanz → Zeitpunkt der letzten Aktivität
+last_out = None
+
+
+def shorten(s, n):
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
+def safe(fn):
+    try:
+        return fn() or ""
+    except GLib.Error:
+        return ""
+
+
+def emit(obj):
+    global last_out
+    line = json.dumps(obj, ensure_ascii=False)
+    if line == last_out:
+        return
+    last_out = line
+    try:
+        print(line, flush=True)
+    except BrokenPipeError:  # Waybar hat das Modul beendet
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(0)
+
+
+def pick():
+    players = [p for p in manager.props.players
+               if p.props.playback_status in (PLAYING, PAUSED)]
+    if not players:
+        return None
+    # spielend vor pausiert, innerhalb davon die jüngste Aktivität zuerst
+    players.sort(key=lambda p: (p.props.playback_status == PLAYING,
+                                active_at.get(p.props.player_instance, 0)), reverse=True)
+    return players[0]
+
+
+def refresh(*_):
+    p = pick()
+    if p is None:
+        emit({"text": "", "tooltip": "", "class": "stopped"})
+        return
+
+    with open(STATE, "w") as f:
+        f.write(p.props.player_instance)
+
+    name    = p.props.player_name
+    playing = p.props.playback_status == PLAYING
+    title   = safe(p.get_title).strip()
+    artist  = safe(p.get_artist).strip()
+    album   = safe(p.get_album).strip()
+
+    label = shorten(title, TITLE_MAX) if title else ""
+    if artist:
+        label = f"{label} – {shorten(artist, ARTIST_MAX)}" if label else shorten(artist, ARTIST_MAX)
+    if not label:
+        label = name
+
+    icon = ICONS.get(name, ICON_DEFAULT) if playing else ICON_PAUSED
+    tip = html.escape(title or name)
+    sub = " · ".join(html.escape(x) for x in (artist, album) if x)
+    if sub:
+        tip += f"\n<span fgalpha='70%'>{sub}</span>"
+
+    emit({
+        "text":    f"<span fgalpha='88%'>{icon}</span>  {html.escape(label)}",
+        "tooltip": tip,
+        "class":   ["playing" if playing else "paused", name],
+    })
+
+
+def on_status(player, status, *_):
+    if status == PLAYING:
+        active_at[player.props.player_instance] = time.monotonic()
+    refresh()
+
+
+def on_metadata(player, *_):
+    if player.props.playback_status == PLAYING:
+        active_at[player.props.player_instance] = time.monotonic()
+    refresh()
+
+
+def add(name):
+    try:
+        player = Playerctl.Player.new_from_name(name)
+    except GLib.Error:
+        return
+    player.connect("playback-status", on_status)
+    player.connect("metadata", on_metadata)
+    manager.manage_player(player)
+    if player.props.playback_status == PLAYING:
+        active_at[player.props.player_instance] = time.monotonic()
+
+
+def on_vanished(_manager, player):
+    active_at.pop(player.props.player_instance, None)
+    refresh()
+
+
+manager.connect("name-appeared", lambda _m, name: (add(name), refresh()))
+manager.connect("player-vanished", on_vanished)
+for n in manager.props.player_names:
+    add(n)
+
+refresh()
+try:
+    GLib.MainLoop().run()
+except KeyboardInterrupt:
+    pass

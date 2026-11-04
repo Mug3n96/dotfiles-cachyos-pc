@@ -40,7 +40,7 @@
 | `.config/hypr/lua/rules.lua` | Fenster-, Layer- und Workspace-Regeln, Workspace-Zuordnung, SUPER+O |
 | `.config/hypr/lua/binds.lua` | Tastenkürzel |
 | `.config/hypr/workspaces.lua` | **Welche App auf welchem Workspace landet** – die Datei zum Anfassen |
-| `.config/hypr/scripts/` | `hdr-toggle`, `screenshot`, `powermenu`, `clipboard`, `wallpaper`, `waybar-scratchpad`, `waybar-weather` |
+| `.config/hypr/scripts/` | `hdr-toggle`, `screenshot`, `powermenu`, `clipboard`, `wallpaper`, `waybar-scratchpad`, `waybar-weather`, `waybar-media` |
 | `.config/waybar/` | Leiste: drei Inseln, Scratchpad-Knopf, in der Mitte Wetter · Uhr · Musik |
 | `.config/dunst/dunstrc` | Benachrichtigungen |
 | `.config/fuzzel/fuzzel.ini` | Launcher (auch für Power-Menü und Zwischenablage) |
@@ -161,7 +161,7 @@ Funktionen auch bei gesperrtem Bildschirm. Lautstärke in 3-%-Schritten, maximal
 | Ebenen-Symbol (Scratchpad) | **Klick:** ein-/ausblenden · **Rechtsklick:** aktives Fenster hineinlegen. Die Zahl zeigt, wie viele Fenster darin liegen. |
 | Uhr | Darüberfahren zeigt den Kalender mit Kalenderwochen |
 | Wetter (links der Uhr) | Darüberfahren zeigt gefühlte Temperatur, Wind, Sonnenauf- und -untergang, die nächsten 6 Stunden und 3 Tage |
-| Musik (rechts der Uhr, nur wenn etwas läuft) | **Klick:** Pause/Weiter · **Mausrad:** vorheriger/nächster Titel. Pausiert zeigt es ▶ |
+| Musik (rechts der Uhr, nur wenn etwas läuft) | **Klick:** Pause/Weiter · **Mausrad:** vorheriger/nächster Titel. Zeigt, was gerade spielt, sonst das zuletzt Pausierte mit ▶. Gestoppt = weg |
 | Lautstärke | **Klick:** Pavucontrol · **Rechtsklick:** stumm · **Mausrad:** lauter/leiser |
 | RAM, Temperatur, Netzwerk | Darüberfahren zeigt Details (z. B. IP-Adresse) |
 | Power-Symbol rechts | Power-Menü |
@@ -401,6 +401,8 @@ Was beim Umstieg auffällt:
 - **Mit Animationen** braucht slurp eine Layer-Regel `no_anim` für den Namespace `selection`, sonst ist das
   verblassende Auswahl-Overlay im Screenshot.
 - **mpvpaper:** `-p` allein pausiert unter Hyprland hinter Vollbildfenstern **nicht**; erst `-p -a full`.
+- **Waybar-mpris bleibt hängen:** Meldet der zuletzt aktive Player „gestoppt“ (Brave beim Tab-Schließen), überspringt
+  das eingebaute Modul jedes Update und zeigt den alten Titel für immer. Deshalb `scripts/waybar-media` (Playerctl per Python).
 - **Waybar-Uhr auf Deutsch:** `{0:L%a}` – ohne `L` bleibt `std::format` englisch.
 
 ---

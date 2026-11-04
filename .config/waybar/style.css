@@ -43,7 +43,7 @@ window#waybar label {
 #submap,
 #custom-weather,
 #clock,
-#mpris,
+#custom-media,
 #pulseaudio,
 #cpu,
 #memory,
@@ -57,7 +57,7 @@ window#waybar label {
 
 #custom-launcher,
 #custom-weather,
-#mpris,
+#custom-media,
 #pulseaudio,
 #clock,
 #custom-power {
@@ -66,7 +66,7 @@ window#waybar label {
 
 #custom-launcher:hover,
 #custom-weather:hover,
-#mpris:hover,
+#custom-media:hover,
 #pulseaudio:hover,
 #clock:hover,
 #custom-power:hover {
@@ -83,7 +83,7 @@ window#waybar label {
 }
 
 /* Mitte: Wetter | Uhr | Musik. Pausierte Musik tritt zurück, bleibt aber lesbar. */
-#mpris.paused {
+#custom-media.paused {
   color: rgba(216, 222, 233, 0.88);
 }
 

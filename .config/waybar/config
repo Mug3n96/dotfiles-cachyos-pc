@@ -12,7 +12,7 @@
   "reload_style_on_change": true,
 
   "modules-left": ["custom/launcher", "hyprland/workspaces", "custom/scratchpad", "hyprland/submap"],
-  "modules-center": ["custom/weather", "clock", "mpris"],
+  "modules-center": ["custom/weather", "clock", "custom/media"],
   "modules-right": ["tray", "pulseaudio", "cpu", "memory", "temperature", "network", "custom/power"],
 
   "custom/launcher": {
@@ -75,20 +75,16 @@
     "restart-interval": 60
   },
 
-  // Musik von Spotify, Brave usw. Nur sichtbar, solange etwas läuft oder pausiert ist.
-  // Klick = Pause/Weiter, Scrollen = vorheriger/nächster Titel.
-  // Pausiert zeigt es ▶: das Symbol sagt, was der Klick tut.
-  "mpris": {
-    "format": "<span fgalpha='88%'>{player_icon}</span>  {dynamic}",
-    "format-paused": "<span fgalpha='88%'>󰐊</span>  {dynamic}",
-    // Brave meldet nur sich selbst, nicht die Seite; ein Brave-Logo hat die Nerd Font nicht: Erde (gefüllt, so kräftig wie Spotify)
-    "player-icons": { "default": "󰎇", "spotify": "󰓇", "brave": "󰇧" },
-    "dynamic-order": ["title", "artist"],
-    "dynamic-separator": " – ",
-    "dynamic-len": 40,
-    "tooltip-format": "{title}\n<span fgalpha='70%'>{artist}</span>",
-    "on-scroll-up": "playerctl previous",
-    "on-scroll-down": "playerctl next"
+  // Musik/Video von Spotify, Brave usw. Eigenes Skript statt Waybars mpris: das bleibt
+  // stehen, wenn ein Player "gestoppt" meldet (Brave beim Tab-Schließen).
+  // Klick = Pause/Weiter, Scrollen = vorheriger/nächster Titel (genau dieser Player)
+  "custom/media": {
+    "exec": "~/.config/hypr/scripts/waybar-media",
+    "return-type": "json",
+    "restart-interval": 5,
+    "on-click": "~/.config/hypr/scripts/waybar-media play-pause",
+    "on-scroll-up": "~/.config/hypr/scripts/waybar-media previous",
+    "on-scroll-down": "~/.config/hypr/scripts/waybar-media next"
   },
 
   "tray": {
