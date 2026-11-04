@@ -188,7 +188,12 @@ def render(d, stale=False):
 
 
 def emit(obj):
-    print(json.dumps(obj, ensure_ascii=False), flush=True)
+    try:
+        print(json.dumps(obj, ensure_ascii=False), flush=True)
+    except BrokenPipeError:
+        # Waybar hat das Modul beendet (Neuladen): leise aufhören
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(0)
 
 
 def load_cache():
@@ -210,8 +215,8 @@ def wait(seconds):
 
 def main():
     cached = load_cache()
-    if cached:
-        emit(render(cached, stale=True))
+    if cached:  # sofort etwas zeigen, auch wenn das Netz beim Start noch fehlt
+        emit(render(cached, stale=time.time() - cached["_fetched"] > REFRESH + RETRY))
 
     while True:
         try:
