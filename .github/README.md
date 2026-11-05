@@ -162,6 +162,7 @@ Funktionen auch bei gesperrtem Bildschirm. Lautstärke in 3-%-Schritten, maximal
 | Uhr | Darüberfahren zeigt den Kalender mit Kalenderwochen |
 | Wetter (links der Uhr) | Darüberfahren zeigt gefühlte Temperatur, Wind, Sonnenauf- und -untergang, die nächsten 6 Stunden und 3 Tage |
 | Musik (rechts der Uhr, nur wenn etwas läuft) | **Klick:** Pause/Weiter · **Mausrad:** vorheriger/nächster Titel. Zeigt, was gerade spielt, sonst das zuletzt Pausierte mit ▶. Gestoppt = weg |
+| ⏮ / ⏭ neben dem Titel | Vorheriger/nächster Titel. Nur sichtbar, wenn der Player das kann (Spotify immer, YouTube je nach Seite) |
 | Lautstärke | **Klick:** Pavucontrol · **Rechtsklick:** stumm · **Mausrad:** lauter/leiser |
 | RAM, Temperatur, Netzwerk | Darüberfahren zeigt Details (z. B. IP-Adresse) |
 | Power-Symbol rechts | Power-Menü |

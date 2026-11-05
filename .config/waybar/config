@@ -12,7 +12,7 @@
   "reload_style_on_change": true,
 
   "modules-left": ["custom/launcher", "hyprland/workspaces", "custom/scratchpad", "hyprland/submap"],
-  "modules-center": ["custom/weather", "clock", "custom/media"],
+  "modules-center": ["custom/weather", "clock", "custom/media-prev", "custom/media", "custom/media-next"],
   "modules-right": ["tray", "pulseaudio", "cpu", "memory", "temperature", "network", "custom/power"],
 
   "custom/launcher": {
@@ -85,6 +85,23 @@
     "on-click": "~/.config/hypr/scripts/waybar-media play-pause",
     "on-scroll-up": "~/.config/hypr/scripts/waybar-media previous",
     "on-scroll-down": "~/.config/hypr/scripts/waybar-media next"
+  },
+
+  // ⏮ ⏭ links und rechts vom Titel, nur wenn der Player überspringen kann.
+  // waybar-media zeichnet sie per Signal 8 neu (SIGNAL im Skript).
+  "custom/media-prev": {
+    "exec": "~/.config/hypr/scripts/waybar-media button prev",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 8,
+    "on-click": "~/.config/hypr/scripts/waybar-media previous"
+  },
+  "custom/media-next": {
+    "exec": "~/.config/hypr/scripts/waybar-media button next",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 8,
+    "on-click": "~/.config/hypr/scripts/waybar-media next"
   },
 
   "tray": {

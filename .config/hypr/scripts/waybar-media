@@ -9,8 +9,14 @@ Modul auszublenden. Dieses Skript zeigt:
   3. sonst nichts. Gestoppte und geschlossene Player verschwinden sofort.
 
 Aufruf:
-  waybar-media                   Dauerbetrieb für Waybar (JSON-Zeilen)
+  waybar-media                            Dauerbetrieb für Waybar (JSON-Zeilen)
   waybar-media play-pause|next|previous   steuert genau den angezeigten Player
+  waybar-media button prev|next           Knopf ⏮/⏭ für Waybar, nur wenn der Player
+                                          das kann (Spotify ja, YouTube je nach Seite)
+
+Die Knöpfe sind eigene Module (sonst wären sie nicht einzeln klickbar). Sie lesen
+den Zustand aus STATE und werden per Signal SIGRTMIN+SIGNAL neu gezeichnet, wenn
+er sich ändert; "signal" in waybar/config muss dazu passen.
 """
 
 import html
@@ -20,7 +26,8 @@ import subprocess
 import sys
 import time
 
-STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "waybar-media.player")
+STATE  = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "waybar-media.json")
+SIGNAL = 8
 
 ICONS = {
     "spotify": "\U000f04c7",
@@ -28,21 +35,40 @@ ICONS = {
 }
 ICON_DEFAULT = "\U000f0387"   # Note
 ICON_PAUSED  = "\U000f040a"   # ▶
+BUTTONS = {
+    "prev": ("\U000f04ae", "Vorheriger Titel", "can_prev"),
+    "next": ("\U000f04ad", "Nächster Titel",   "can_next"),
+}
 TITLE_MAX, ARTIST_MAX = 34, 20
 
 
-def control(cmd):
+def read_state():
     try:
         with open(STATE) as f:
-            instance = f.read().strip()
-    except FileNotFoundError:
-        instance = ""
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def control(cmd):
+    instance = read_state().get("instance", "")
     args = ["playerctl"] + (["-p", instance] if instance else []) + [cmd]
     subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def button(which):
+    glyph, tip, key = BUTTONS[which]
+    if read_state().get(key):
+        print(json.dumps({"text": f"<span fgalpha='88%'>{glyph}</span>", "tooltip": tip}, ensure_ascii=False))
+    else:
+        print(json.dumps({"text": ""}))
+
+
 if len(sys.argv) > 1:
-    control(sys.argv[1])
+    if sys.argv[1] == "button":
+        button(sys.argv[2])
+    else:
+        control(sys.argv[1])
     sys.exit(0)
 
 
@@ -56,6 +82,7 @@ PAUSED  = Playerctl.PlaybackStatus.PAUSED
 manager = Playerctl.PlayerManager()
 active_at = {}  # Instanz → Zeitpunkt der letzten Aktivität
 last_out = None
+last_state = None
 
 
 def shorten(s, n):
@@ -93,14 +120,31 @@ def pick():
     return players[0]
 
 
+def save_state(state):
+    """Zustand für Klicks und Knöpfe; Knöpfe nur neu zeichnen, wenn sich etwas ändert."""
+    global last_state
+    if state == last_state:
+        return
+    last_state = state
+    tmp = STATE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(state, f)
+    os.replace(tmp, STATE)
+    subprocess.run(["pkill", f"-RTMIN+{SIGNAL}", "-x", "waybar"])
+
+
 def refresh(*_):
     p = pick()
     if p is None:
+        save_state({})
         emit({"text": "", "tooltip": "", "class": "stopped"})
         return
 
-    with open(STATE, "w") as f:
-        f.write(p.props.player_instance)
+    save_state({
+        "instance": p.props.player_instance,
+        "can_prev": bool(p.props.can_go_previous),
+        "can_next": bool(p.props.can_go_next),
+    })
 
     name    = p.props.player_name
     playing = p.props.playback_status == PLAYING
@@ -147,8 +191,9 @@ def add(name):
     player.connect("playback-status", on_status)
     player.connect("metadata", on_metadata)
     manager.manage_player(player)
-    if player.props.playback_status == PLAYING:
-        active_at[player.props.player_instance] = time.monotonic()
+    # Neu aufgetaucht zählt als Aktivität: der Status kommt manchmal erst danach
+    # als eigenes Signal, und ein neuer Player soll vor dem alten stehen.
+    active_at[player.props.player_instance] = time.monotonic()
 
 
 def on_vanished(_manager, player):

@@ -82,7 +82,27 @@ window#waybar label {
   padding: 0 14px;
 }
 
-/* Mitte: Wetter | Uhr | Musik. Pausierte Musik tritt zurück, bleibt aber lesbar. */
+/* Mitte: Wetter | Uhr | ⏮ Musik ⏭. Pausierte Musik tritt zurück, bleibt aber lesbar. */
+
+/* Knöpfe eng am Titel: wenig Innenabstand, damit ⏮ Titel ⏭ als Einheit lesbar ist */
+#custom-media-prev,
+#custom-media-next {
+  padding: 0 7px;
+  margin: 5px 0;
+  font-size: 15px;
+  border-radius: 6px;
+  transition: background-color 150ms ease-out;
+}
+
+#custom-media-prev:hover,
+#custom-media-next:hover {
+  background: rgba(216, 222, 233, 0.08);
+}
+
+#custom-media {
+  padding: 0 6px;
+}
+
 #custom-media.paused {
   color: rgba(216, 222, 233, 0.88);
 }
