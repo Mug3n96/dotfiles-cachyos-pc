@@ -10,6 +10,12 @@ Das Theme enthält nur App-Icons und erbt alles andere (Ordner, Dateien, Symbole
 von Nordzy-dark. Es entsteht lokal und kommt nicht ins Repo: die Vorlagen sind
 fremde Icon-Sets und App-Logos.
 
+Feste Bildpfade (Icon=/pfad/bild.png, z. B. Waydroid-Apps) lassen sich über kein Theme
+ersetzen. In eigenen .desktop-Dateien (~/.local/share/applications) wandelt das Skript sie
+deshalb in Icon-Namen um: das Original kommt nach ~/.local/share/icons/hicolor (gilt mit
+jedem Theme), Nord-Frost legt die gefärbte Fassung darüber. Waydroid schreibt seine
+Einträge gelegentlich neu; der nächste Lauf stellt es wieder um.
+
 Aufruf:  nord-icons          nur neue/geänderte Icons (läuft per nord-icons.path automatisch)
          nord-icons --all    alles neu erzeugen (z. B. nach Änderung der Farben hier)
 Braucht: papirus-icon-theme, nordzy-icon-theme, python-gobject, python-numpy, python-pillow
@@ -20,6 +26,7 @@ import glob
 import io
 import json
 import os
+import re
 import shutil
 import sys
 
@@ -36,6 +43,7 @@ SOURCES = ["Papirus-Dark", "Nordzy-dark"]  # flache Vorlagen zuerst
 SIZES   = [32, 64, 128]
 OUT     = os.path.join(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")), "icons", THEME)
 MANIFEST = os.path.join(OUT, ".quellen.json")
+DATA_HOME = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
 
 # Verlauf: Stelle 0..1 → Farbe
 STOPS = [(0.00, "#4c566a"), (0.55, "#81a1c1"), (1.00, "#e5e9f0")]
@@ -66,6 +74,51 @@ def desktop_icons():
             if icon and "/" not in icon:  # feste Pfade lassen sich nicht über ein Theme ersetzen
                 names.add(icon)
     return names
+
+
+def adopt_path_icons():
+    """Icon=/pfad/bild.png in eigenen .desktop-Dateien → Icon=<name>, Original nach hicolor."""
+    changed = 0
+    for f in glob.glob(os.path.join(DATA_HOME, "applications", "**", "*.desktop"), recursive=True):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                lines = fh.read().split("\n")
+        except (OSError, UnicodeDecodeError):
+            continue
+        section, dirty = None, False
+        for i, line in enumerate(lines):
+            if line.startswith("["):
+                section = line.strip()
+            if section != "[Desktop Entry]" or not line.startswith("Icon=/"):
+                continue
+            path = line[5:].strip()
+            stem, ext = os.path.splitext(os.path.basename(path))
+            if not os.path.isfile(path) or ext.lower() not in (".png", ".svg"):
+                continue
+            name = re.sub(r"[^A-Za-z0-9._-]", "_", stem)
+            if ext.lower() == ".svg":
+                dest = os.path.join(DATA_HOME, "icons", "hicolor", "scalable", "apps", name + ".svg")
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.copyfile(path, dest)
+            else:
+                dest = os.path.join(DATA_HOME, "icons", "hicolor", "128x128", "apps", name + ".png")
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                Image.open(path).convert("RGBA").resize((128, 128), Image.LANCZOS).save(dest)
+            lines[i] = "Icon=" + name
+            dirty = True
+        if dirty:
+            tmp = f + ".nord-icons.tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write("\n".join(lines))
+            os.replace(tmp, f)
+            changed += 1
+    # Liegt in hicolor ein Icon-Cache (legt z. B. Steam an), sieht GTK neue Dateien erst
+    # nach dessen Erneuerung.
+    hicolor = os.path.join(DATA_HOME, "icons", "hicolor")
+    if changed and os.path.exists(os.path.join(hicolor, "icon-theme.cache")):
+        import subprocess
+        subprocess.run(["gtk-update-icon-cache", "-f", "-q", "-t", hicolor], check=False)
+    return changed
 
 
 def theme(name):
@@ -145,7 +198,8 @@ def main():
     except (OSError, ValueError):
         manifest = {}
 
-    themes = [theme(n) for n in SOURCES]
+    adopted = adopt_path_icons()
+    themes = [theme(n) for n in SOURCES]  # erst danach: GTK soll die neuen hicolor-Icons sehen
     wanted = desktop_icons()
     made = kept = missing = 0
 
@@ -184,7 +238,8 @@ def main():
     with open(MANIFEST, "w") as f:
         json.dump(manifest, f, indent=0, sort_keys=True)
     os.utime(OUT)  # laufende GTK-Programme laden das Theme neu
-    print(f"{THEME}: {made} neu, {kept} unverändert, {missing} ohne Vorlage")
+    print(f"{THEME}: {made} neu, {kept} unverändert, {missing} ohne Vorlage"
+          + (f", {adopted} Einträge mit festem Bildpfad umgestellt" if adopted else ""))
 
 
 if __name__ == "__main__":
