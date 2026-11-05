@@ -4,7 +4,7 @@
 Ort: ~/.config/waybar/weather.local (bewusst nicht im Repo):
     Stadtname           z. B. "Hamburg"
     oder Breite,Länge   z. B. "53.55,9.99"
-    pollen=123          optional: DWD-Pollenflug-Region (partregion_id, sonst region_id)
+    pollen=12           optional: DWD-Pollenflug-Region (partregion_id, sonst region_id)
                         aus https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json
 Ohne Datei wird der Ort grob über die IP geschätzt (ipinfo.io), Pollen gibt es dann nicht.
 Pollen: Pollenflug-Gefahrenindex des Deutschen Wetterdienstes, einmal täglich ~11 Uhr.
