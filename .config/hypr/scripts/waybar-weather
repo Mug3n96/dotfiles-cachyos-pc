@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Wetter für die Waybar (mittlere Insel), Daten von Open-Meteo, ohne API-Key.
 
-Ort: ~/.config/waybar/weather.local (bewusst nicht im Repo), eine Zeile:
+Ort: ~/.config/waybar/weather.local (bewusst nicht im Repo):
     Stadtname           z. B. "Hamburg"
     oder Breite,Länge   z. B. "53.55,9.99"
-Ohne Datei wird der Ort grob über die IP geschätzt (ipinfo.io).
+    pollen=123          optional: DWD-Pollenflug-Region (partregion_id, sonst region_id)
+                        aus https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json
+Ohne Datei wird der Ort grob über die IP geschätzt (ipinfo.io), Pollen gibt es dann nicht.
+Pollen: Pollenflug-Gefahrenindex des Deutschen Wetterdienstes, einmal täglich ~11 Uhr.
 
 Läuft dauerhaft und gibt alle 15 min eine JSON-Zeile für Waybar aus. Ohne Netz
 bleiben die letzten Daten bis zu 3 h stehen, danach blendet sich das Modul aus.
@@ -17,7 +20,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import date, datetime
 
 CONF    = os.path.expanduser("~/.config/waybar/weather.local")
 CACHE   = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
@@ -26,7 +29,12 @@ REFRESH = 15 * 60
 RETRY   = 60
 STALE   = 3 * 3600
 
+POLLEN_URL   = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
+POLLEN_EVERY = 3600
+
 ACCENT2 = "#81a1c1"
+YELLOW  = "#ebcb8b"
+RED     = "#bf616a"
 MONO    = "JetBrainsMono Nerd Font"
 
 # WMO-Wettercode → (Text, Icon Tag, Icon Nacht)
@@ -82,13 +90,28 @@ def get_json(url, params=None):
 _located = {}  # Ort nur einmal auflösen, neu nur wenn sich weather.local ändert
 
 
-def location():
-    """(lat, lon, name, geschätzt?) aus weather.local, sonst per IP."""
+def read_conf():
+    """(Ort, {schlüssel: wert}) aus weather.local; Zeilen mit "=" sind Optionen."""
+    spec, opts = "", {}
     try:
         with open(CONF) as f:
-            spec = f.read().strip()
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    opts[k.strip()] = v.strip()
+                elif not spec:
+                    spec = line
     except FileNotFoundError:
-        spec = ""
+        pass
+    return spec, opts
+
+
+def location():
+    """(lat, lon, name, geschätzt?) aus weather.local, sonst per IP."""
+    spec, _ = read_conf()
     if spec not in _located:
         _located.clear()
         _located[spec] = resolve(spec)
@@ -114,6 +137,43 @@ def resolve(spec):
     return lat, lon, ip.get("city"), True
 
 
+_pollen_raw = {"at": 0.0, "data": None}
+
+
+def pollen():
+    """{"region": Name, "days": [heute, morgen]} für die DWD-Region aus weather.local, sonst None.
+
+    Der DWD gibt einmal täglich um ~11 Uhr aus. Vorher ist "today" in der Datei noch
+    gestern, dann rückt alles um einen Tag: tomorrow → heute, dayafter_to → morgen
+    (dayafter_to gibt es nur freitags, sonst "-1" = unbekannt).
+    """
+    region = read_conf()[1].get("pollen")
+    if not region:
+        return None
+    if time.time() - _pollen_raw["at"] > POLLEN_EVERY:
+        try:
+            _pollen_raw["data"] = get_json(POLLEN_URL)
+            _pollen_raw["at"] = time.time()
+        except Exception as e:  # Pollen sind Beiwerk: Wetter trotzdem zeigen
+            print(f"waybar-weather: Pollen: {e}", file=sys.stderr)
+            _pollen_raw["at"] = time.time() - POLLEN_EVERY + 5 * 60  # in 5 min nochmal
+    raw = _pollen_raw["data"]
+    if not raw:
+        return None
+
+    rid = int(region)
+    entry = next((r for r in raw["content"] if r["partregion_id"] == rid), None) or \
+            next((r for r in raw["content"] if r["region_id"] == rid and r["partregion_id"] == -1), None)
+    if not entry:
+        return None
+    lag = (date.today() - date.fromisoformat(raw["last_update"][:10])).days
+    keys = {0: ("today", "tomorrow"), 1: ("tomorrow", "dayafter_to")}.get(lag)
+    if not keys:
+        return None
+    days = [{plant: vals.get(k, "-1") for plant, vals in entry["Pollen"].items()} for k in keys]
+    return {"region": entry["partregion_name"] or entry["region_name"], "days": days}
+
+
 def fetch():
     lat, lon, name, guessed = location()
     data = get_json("https://api.open-meteo.com/v1/forecast", {
@@ -125,6 +185,7 @@ def fetch():
                    "precipitation_probability_max,sunrise,sunset",
     })
     data["_name"], data["_guessed"], data["_fetched"] = name, guessed, time.time()
+    data["_pollen"] = pollen()
     return data
 
 
@@ -135,6 +196,35 @@ def icon(code, is_day=1):
 
 def pct(v):
     return "  –" if v is None else f"{v:3d} %"
+
+
+# DWD-Index → (Stufe, Text). Gelb ab "gering bis mittel", Rot ab "mittel bis hoch".
+POLLEN_LEVEL = {"0": (0, "keine"), "0-1": (0.5, "keine–gering"), "1": (1, "gering"),
+                "1-2": (1.5, "gering–mittel"), "2": (2, "mittel"), "2-3": (2.5, "mittel–hoch"),
+                "3": (3, "hoch")}
+POLLEN_NAMES = {"Graeser": "Gräser", "Beifuss": "Beifuß"}
+
+
+def pollen_lines(p):
+    def lvl(code):
+        return POLLEN_LEVEL.get(code, (0, "–"))
+
+    def cell(code, width):
+        v, txt = lvl(code)
+        pad = " " * max(0, width - len(txt))
+        color = RED if v >= 2.5 else YELLOW if v >= 1.5 else None
+        return (f"<span color='{color}'>{txt}</span>" if color else txt) + pad
+
+    today, tomorrow = p["days"]
+    active = [k for k in today if max(lvl(today[k])[0], lvl(tomorrow.get(k))[0]) > 0]
+    if not active:
+        return [f"<span color='{ACCENT2}'>Pollen</span>  keine Belastung heute und morgen"]
+    active.sort(key=lambda k: max(lvl(today[k])[0], lvl(tomorrow.get(k))[0]), reverse=True)
+    rows = [f"{'':9}{'heute':<15}morgen"]
+    rows += [f"{POLLEN_NAMES.get(k, k):<9}{cell(today[k], 15)}{cell(tomorrow.get(k, '-1'), 0)}"
+             for k in active]
+    return [f"<span color='{ACCENT2}'>Pollen</span>",
+            f"<span font_family='{MONO}'>" + "\n".join(rows) + "</span>"]
 
 
 def render(d, stale=False):
@@ -171,9 +261,14 @@ def render(d, stale=False):
                     f"{pct(daily['precipitation_probability_max'][i])}")
     lines.append(f"<span font_family='{MONO}'>" + "\n".join(rows) + "</span>")
 
+    if d.get("_pollen"):
+        lines += [""] + pollen_lines(d["_pollen"])
+
     notes = []
     if d.get("_guessed"):
         notes.append("Ort per IP geschätzt · fester Ort: ~/.config/waybar/weather.local")
+    if d.get("_pollen"):
+        notes.append("Pollen: Deutscher Wetterdienst · " + html.escape(d["_pollen"]["region"]))
     if stale:
         notes.append("Stand " + datetime.fromtimestamp(d["_fetched"]).strftime("%H:%M") + ", kein Netz")
     if notes:

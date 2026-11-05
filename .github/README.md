@@ -160,7 +160,7 @@ Funktionen auch bei gesperrtem Bildschirm. Lautstärke in 3-%-Schritten, maximal
 | Workspace-Symbol | Zum Workspace wechseln |
 | Ebenen-Symbol (Scratchpad) | **Klick:** ein-/ausblenden · **Rechtsklick:** aktives Fenster hineinlegen. Die Zahl zeigt, wie viele Fenster darin liegen. |
 | Uhr | Darüberfahren zeigt den Kalender mit Kalenderwochen |
-| Wetter (links der Uhr) | Darüberfahren zeigt gefühlte Temperatur, Wind, Sonnenauf- und -untergang, die nächsten 6 Stunden und 3 Tage |
+| Wetter (links der Uhr) | Darüberfahren zeigt gefühlte Temperatur, Wind, Sonnenauf- und -untergang, die nächsten 6 Stunden und 3 Tage, dazu den Pollenflug für heute und morgen (DWD) |
 | Musik (rechts der Uhr, nur wenn etwas läuft) | **Klick:** Pause/Weiter · **Mausrad:** vorheriger/nächster Titel. Zeigt, was gerade spielt, sonst das zuletzt Pausierte mit ▶. Gestoppt = weg |
 | ⏮ / ⏭ neben dem Titel | Vorheriger/nächster Titel. Nur sichtbar, wenn der Player das kann (Spotify immer, YouTube je nach Seite) |
 | Lautstärke | **Klick:** Pavucontrol · **Rechtsklick:** stumm · **Mausrad:** lauter/leiser |
@@ -371,6 +371,7 @@ Dann Hyprland neu starten (abmelden und wieder anmelden).
 | **Monitor** (Ausgang, Auflösung, Hz) | `lua/system.lua` → `hl.monitor`, außerdem `scripts/hdr-toggle` und `.local/bin/sunshine-display` |
 | **GPU** (nicht AMD) | `lua/system.lua` → `LIBVA_DRIVER_NAME` entfernen bzw. anpassen |
 | **Wetter-Ort** | `~/.config/waybar/weather.local` anlegen, eine Zeile: Stadt (`Hamburg`) oder `Breite,Länge`. Ohne Datei wird der Ort per IP geschätzt. Die Datei bleibt lokal (`.gitignore`) |
+| **Pollenflug** | in `weather.local` zusätzlich `pollen=<ID>`: DWD-Teilregion (`partregion_id`, sonst `region_id`) aus dem [Pollenflug-Gefahrenindex](https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json). Ohne Zeile kein Pollen-Abschnitt |
 | **CPU-Temperatur** in der Leiste | `waybar/config` → `hwmon-path-abs` (hier `k10temp` für AMD; Pfad mit `ls /sys/class/hwmon/*/name` finden) |
 | **Tastaturlayout** | `lua/system.lua` → `kb_layout`/`kb_variant` (hier `us`/`intl`) |
 | **Apps auf F-Tasten** | `lua/binds.lua` → Abschnitt „Apps und Werkzeuge“ |
