@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""App-Icons einheitlich in Nord-Frost: erzeugt das Icon-Theme "Nord-Frost".
+
+Für jede App (Icon= aus allen .desktop-Dateien) wird das flache Papirus-Icon genommen,
+sonst Nordzy, sonst das Original der App, und zweifarbig umgefärbt: dunkle Teile
+Nord-Grau (#4c566a), mittlere Frost-Blau (#81a1c1), helle Schneeweiß (#e5e9f0).
+Die Helligkeit wird pro Icon gestreckt, damit alle gleich kräftig wirken.
+
+Das Theme enthält nur App-Icons und erbt alles andere (Ordner, Dateien, Symbole)
+von Nordzy-dark. Es entsteht lokal und kommt nicht ins Repo: die Vorlagen sind
+fremde Icon-Sets und App-Logos.
+
+Aufruf:  nord-icons          nur neue/geänderte Icons (läuft per nord-icons.path automatisch)
+         nord-icons --all    alles neu erzeugen (z. B. nach Änderung der Farben hier)
+Braucht: papirus-icon-theme, nordzy-icon-theme, python-gobject, python-numpy, python-pillow
+"""
+
+import configparser
+import glob
+import io
+import json
+import os
+import shutil
+import sys
+
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf, Gtk  # noqa: E402
+import numpy as np  # noqa: E402
+from PIL import Image  # noqa: E402
+
+THEME   = "Nord-Frost"
+PARENT  = "Nordzy-dark"
+SOURCES = ["Papirus-Dark", "Nordzy-dark"]  # flache Vorlagen zuerst
+SIZES   = [32, 64, 128]
+OUT     = os.path.join(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")), "icons", THEME)
+MANIFEST = os.path.join(OUT, ".quellen.json")
+
+# Verlauf: Stelle 0..1 → Farbe
+STOPS = [(0.00, "#4c566a"), (0.55, "#81a1c1"), (1.00, "#e5e9f0")]
+FLAT_AT = 0.7  # einfarbige Icons (kein Helligkeitsumfang) landen hier
+
+
+def rgb(h):
+    return [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+STOP_T = np.array([t for t, _ in STOPS])
+STOP_C = np.array([rgb(c) for _, c in STOPS], dtype=float)
+
+
+def desktop_icons():
+    """Alle Icon-Namen aus den .desktop-Dateien (auch ausgeblendete: GTK zeigt sie anderswo)."""
+    data_dirs = [os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))]
+    data_dirs += os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")
+    names = set()
+    for d in data_dirs:
+        for f in glob.glob(os.path.join(d, "applications", "**", "*.desktop"), recursive=True):
+            cp = configparser.RawConfigParser(strict=False, interpolation=None)
+            try:
+                cp.read(f, encoding="utf-8")
+                icon = cp["Desktop Entry"].get("Icon", "").strip()
+            except Exception:
+                continue
+            if icon and "/" not in icon:  # feste Pfade lassen sich nicht über ein Theme ersetzen
+                names.add(icon)
+    return names
+
+
+def theme(name):
+    t = Gtk.IconTheme.new()
+    t.set_custom_theme(name)
+    return t
+
+
+def themed(info):
+    """True, wenn das Icon aus einem echten Theme kommt (nicht hicolor/pixmaps = Original der App)."""
+    src = info.get_filename() or ""
+    return src.startswith("/usr/share/icons/") and "/hicolor/" not in src
+
+
+def find(themes, name):
+    """(Theme, Quelldatei): Papirus, sonst Nordzy, sonst das Original."""
+    fallback = None
+    for t in themes:
+        info = t.lookup_icon(name, 128, 0)
+        if info is None:
+            continue
+        if themed(info):
+            return t, info.get_filename()
+        fallback = fallback or (t, info.get_filename())
+    return fallback or (None, None)
+
+
+def render(t, name, size):
+    info = t.lookup_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE)
+    if info is None:
+        return None
+    pb = info.load_icon()
+    if pb.get_width() != size or pb.get_height() != size:
+        pb = pb.scale_simple(size, size, GdkPixbuf.InterpType.HYPER)
+    ok, buf = pb.save_to_bufferv("png", [], [])
+    return np.asarray(Image.open(io.BytesIO(buf)).convert("RGBA"), dtype=float)
+
+
+def contrast(img):
+    """Helligkeitsumfang des Icons (3.–97. Perzentil), None = praktisch einfarbig."""
+    a = img[..., 3] > 64
+    if not a.any():
+        return None
+    lum = img[..., 0] * 0.2126 + img[..., 1] * 0.7152 + img[..., 2] * 0.0722
+    lo, hi = np.percentile(lum[a], [3, 97])
+    return None if hi - lo < 25 else (lo, hi)
+
+
+def frost(img, rng):
+    lum = img[..., 0] * 0.2126 + img[..., 1] * 0.7152 + img[..., 2] * 0.0722
+    t = np.full(lum.shape, FLAT_AT) if rng is None else np.clip((lum - rng[0]) / (rng[1] - rng[0]), 0, 1)
+    out = np.empty_like(img)
+    for ch in range(3):
+        out[..., ch] = np.interp(t, STOP_T, STOP_C[:, ch])
+    out[..., 3] = img[..., 3]
+    return Image.fromarray(out.round().astype(np.uint8), "RGBA")
+
+
+def write_index():
+    dirs = [f"{s}x{s}/apps" for s in SIZES]
+    lines = ["[Icon Theme]", f"Name={THEME}", "Comment=App-Icons in Nord-Frost, Rest von Nordzy",
+             f"Inherits={PARENT},hicolor", "Directories=" + ",".join(dirs), ""]
+    for s, d in zip(SIZES, dirs):
+        lines += [f"[{d}]", f"Size={s}", "Context=Applications", "Type=Threshold", "Threshold=8", ""]
+    with open(os.path.join(OUT, "index.theme"), "w") as f:
+        f.write("\n".join(lines))
+
+
+def main():
+    full = "--all" in sys.argv
+    if full and os.path.isdir(OUT):
+        shutil.rmtree(OUT)
+    os.makedirs(OUT, exist_ok=True)
+    try:
+        with open(MANIFEST) as f:
+            manifest = json.load(f)
+    except (OSError, ValueError):
+        manifest = {}
+
+    themes = [theme(n) for n in SOURCES]
+    wanted = desktop_icons()
+    made = kept = missing = 0
+
+    for name in sorted(wanted):
+        t, src = find(themes, name)
+        if t is None:
+            missing += 1
+            continue
+        stamp = [src, os.path.getmtime(src)]
+        if manifest.get(name) == stamp and os.path.exists(os.path.join(OUT, f"{SIZES[-1]}x{SIZES[-1]}/apps/{name}.png")):
+            kept += 1
+            continue
+        big = render(t, name, SIZES[-1])
+        if big is None:
+            missing += 1
+            continue
+        rng = contrast(big)  # aus der größten Fassung, damit alle Größen gleich aussehen
+        for s in SIZES:
+            img = big if s == SIZES[-1] else render(t, name, s)
+            d = os.path.join(OUT, f"{s}x{s}", "apps")
+            os.makedirs(d, exist_ok=True)
+            frost(img, rng).save(os.path.join(d, name + ".png"))
+        manifest[name] = stamp
+        made += 1
+
+    # Icons von deinstallierten Apps entfernen
+    for name in set(manifest) - wanted:
+        for s in SIZES:
+            try:
+                os.remove(os.path.join(OUT, f"{s}x{s}", "apps", name + ".png"))
+            except FileNotFoundError:
+                pass
+        del manifest[name]
+
+    write_index()
+    with open(MANIFEST, "w") as f:
+        json.dump(manifest, f, indent=0, sort_keys=True)
+    os.utime(OUT)  # laufende GTK-Programme laden das Theme neu
+    print(f"{THEME}: {made} neu, {kept} unverändert, {missing} ohne Vorlage")
+
+
+if __name__ == "__main__":
+    main()

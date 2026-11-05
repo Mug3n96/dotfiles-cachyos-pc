@@ -280,7 +280,7 @@ in Waybar, Dunst, Fuzzel und Alacritty.
 | Rundung | 10 px außen, 6 px innen (Knöpfe in der Leiste, Auswahl im Launcher) |
 | Fokus | aktives Fenster massiv, oben 2 px Glanzlicht im Akzent (läuft zu den Seiten aus); inaktive mattes Glas |
 | Schrift | Adwaita Sans (Oberfläche), JetBrains Mono Nerd Font (Terminal, Icons) |
-| Themes | Nordic (GTK), Nordic (Kvantum/Qt), Nordzy-dark (Icons), Nordzy-cursors |
+| Themes | Nordic (GTK), Nordic (Kvantum/Qt), Nord-Frost (App-Icons, erzeugt) auf Nordzy-dark (übrige Icons), Nordzy-cursors |
 
 **Tiefe durch Material statt Schatten:** Das aktive Fenster ist massiv, inaktive Fenster sind mattes Glas
 (88 % Deckkraft, dahinter weichgezeichnet). Beim Fokuswechsel wird das Fenster in 450 ms sichtbar fest, und
@@ -324,6 +324,9 @@ sudo pacman -S --needed hyprland xdg-desktop-portal-hyprland hyprpolkitagent \
 # AUR: Themes und Waybar-Git
 paru -S nordic-theme-git kvantum-theme-nordic-git nordzy-icon-theme nordzy-cursors waybar-git
 
+# App-Icons in Nord-Frost (nord-icons)
+sudo pacman -S --needed papirus-icon-theme python-gobject python-numpy python-pillow
+
 # Nur für render.py
 sudo pacman -S --needed python-numpy python-pillow python-scipy ffmpeg
 ```
@@ -352,8 +355,10 @@ Unter fish ist `dotfiles` danach dauerhaft da (`.config/fish/functions/dotfiles.
 
 ```sh
 systemctl --user enable --now hyprpolkitagent.service    # Passwortdialoge für Admin-Aktionen
+nord-icons                                               # App-Icons in Nord-Frost erzeugen
+systemctl --user enable --now nord-icons.path            # neue Apps automatisch nachfärben
 gsettings set org.gnome.desktop.interface gtk-theme 'Nordic'
-gsettings set org.gnome.desktop.interface icon-theme 'Nordzy-dark'
+gsettings set org.gnome.desktop.interface icon-theme 'Nord-Frost'
 gsettings set org.gnome.desktop.interface cursor-theme 'Nordzy-cursors'
 gsettings set org.gnome.desktop.interface font-name 'Adwaita Sans 11'
 gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrainsMono Nerd Font 11'
@@ -377,6 +382,7 @@ Dann Hyprland neu starten (abmelden und wieder anmelden).
 | **Apps auf F-Tasten** | `lua/binds.lua` → Abschnitt „Apps und Werkzeuge“ |
 | **Apps → Workspaces** | `workspaces.lua` |
 | **Wallpaper** | `~/Bilder/wallpaper.png`; Pfade in `scripts/wallpaper` |
+| **App-Icons** | `~/.local/bin/nord-icons`: Farbverlauf `STOPS`, Vorlagen `SOURCES`; danach `nord-icons --all`. Zurück zu bunt: `icon-theme` in Fuzzel/GTK auf `Nordzy-dark` |
 | **Farben, Abstände** | `lua/theme.lua`, dann dieselben Werte in Waybar/Dunst/Fuzzel/Alacritty |
 | **Sunshine** | optional; ohne Sunshine `.config/sunshine` und `sunshine-display` einfach ignorieren |
 
