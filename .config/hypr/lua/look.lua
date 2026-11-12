@@ -57,14 +57,18 @@ hl.config({
     },
 
     misc = {
-        vrr                      = 2, -- VRR nur im Vollbild
+        -- VRR nur für Vollbild-Spiele und -Videos (Content-Type). Bei 2 (jedes Vollbild)
+        -- schwankt die Bildrate eines maximierten Browsers und das Bild flackert.
+        vrr                      = 3,
         disable_hyprland_logo    = true,
         disable_splash_rendering = true,
         force_default_wallpaper  = 0,
         background_color         = "rgb(" .. c.base .. ")", -- sichtbar, bis das Wallpaper da ist
     },
 
-    render   = { direct_scanout = 1 },
+    -- Direct Scanout nur für Spiele (Content-Type "game"). Bei 1 flackerten Browser im
+    -- Vollbild (SUPER+Leertaste) auf AMD, Spiele merken keinen Unterschied.
+    render   = { direct_scanout = 2 },
     xwayland = { force_zero_scaling = true },
     binds    = { allow_workspace_cycles = true },
 })
