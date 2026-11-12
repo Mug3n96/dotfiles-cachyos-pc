@@ -68,6 +68,13 @@ hl.window_rule({
     match  = { class = "^(BambuStudio|mpv|gimp.*|org\\.kde\\.krita|com\\.obsproject\\.Studio|steam_app_.*|overwatch\\.exe|gamescope|scrcpy|Waydroid|waydroid\\..*)$" },
     opaque = true,
 })
+-- Spiele als "game" kennzeichnen, auch wenn sie es nicht selbst melden. Nur dann
+-- greifen VRR (misc.vrr = 3) und Direct Scanout (render.direct_scanout = 2), look.lua.
+hl.window_rule({
+    name    = "game-content",
+    match   = { class = "^(steam_app_.*|gamescope|overwatch\\.exe)$" },
+    content = "game",
+})
 hl.window_rule({ name = "opaque-video", match = { content = "video" }, opaque = true })
 hl.window_rule({ name = "opaque-game",  match = { content = "game" },  opaque = true })
 
