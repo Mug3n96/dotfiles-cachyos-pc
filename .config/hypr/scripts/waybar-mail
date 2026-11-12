@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Mail-Knopf für die Waybar (rechte Insel). Thunderbird startet beim Login
+# unsichtbar und lebt als Karte im Special-Workspace "mail" (wie das Scratchpad).
+#
+#   ohne Argument  Modul-Ausgabe: lauscht auf Hyprland-Events und Benachrichtigungen
+#   toggle         Linksklick: Mail-Karte ein-/ausblenden, startet Thunderbird bei Bedarf
+#   compose        Mittelklick: neue Mail schreiben
+#   start          Autostart: Thunderbird unsichtbar starten (lua/system.lua)
+#
+# Zustände (CSS-Klassen): off (Thunderbird zu) · idle · new (neue Mail seit dem
+# letzten Öffnen, Anzahl wird angezeigt) · open
+# Fensterregel für das Hauptfenster: lua/rules.lua ("mail-panel").
+
+NAME="mail"
+WS="special:$NAME"
+CLASS="org.mozilla.Thunderbird"
+ICON=$'\U000F01EE'   # nf-md-email
+new=0   # neue Mails seit dem letzten Öffnen (pro Instanz: Waybar startet das Modul je Monitor)
+
+running() { hyprctl clients -j | jq -e --arg c "$CLASS" 'any(.[]; .class == $c)' >/dev/null; }
+visible() { hyprctl monitors -j | jq -e --arg w "$WS" 'any(.[]; .specialWorkspace.name == $w)' >/dev/null; }
+show()    { hyprctl dispatch "hl.dsp.workspace.toggle_special(\"$NAME\")" >/dev/null; }
+
+start() {
+    running && return 0
+    thunderbird >/dev/null 2>&1 &
+    disown
+    # warten, bis das Hauptfenster da ist (Profil laden dauert ein paar Sekunden)
+    for _ in $(seq 60); do running && return 0; sleep 0.25; done
+    return 1
+}
+
+case "${1:-}" in
+    start)
+        start; exit 0 ;;
+    toggle)
+        if ! running; then
+            notify-send -a Mail -t 2000 "Thunderbird startet …"
+            start && sleep 0.3 && ! visible && show
+        else
+            show
+        fi
+        exit 0 ;;
+    compose)
+        thunderbird -compose >/dev/null 2>&1 &
+        disown
+        exit 0 ;;
+esac
+
+render() {
+    local n=$new cls text tip
+    if ! running;      then cls=off;  tip="Thunderbird ist zu\nKlick: starten"
+    elif visible;      then cls=open; tip="Mail\nKlick: ausblenden · Mittelklick: neue Mail"
+    elif (( n > 0 ));  then cls=new;  tip="$n neue Mail$( (( n > 1 )) && echo s)\nKlick: anzeigen · Mittelklick: neue Mail"
+    else                    cls=idle; tip="Mail · nichts Neues\nKlick: anzeigen · Mittelklick: neue Mail"
+    fi
+    text=$ICON; [[ $cls == new ]] && text="$ICON  $n"
+    jq -cn --arg t "$text" --arg c "$cls" --arg tt "$tip" '{text: $t, class: $c, tooltip: ($tt | gsub("\\\\n"; "\n"))}'
+}
+
+# Mail-Karte geöffnet = gelesen: Zähler zurücksetzen
+seen() { if visible; then new=0; fi; }
+
+seen
+render
+{
+    socat -U - "UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" &
+    # Benachrichtigungen mitlesen: das erste String-Argument von Notify ist der App-Name
+    dbus-monitor --session "type='method_call',interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null \
+        | awk '/member=Notify/ { want = 1; next }
+               want && /^ +string "/ { want = 0; if ($0 ~ /"Thunderbird"/) { print "mailnotify>>"; fflush() } }' &
+    wait
+} | while IFS= read -r event; do
+    case $event in
+        mailnotify\>\>*)
+            visible || (( new++ ))
+            render ;;
+        activespecial\>\>*)                          seen; render ;;
+        openwindow\>\>*|closewindow\>\>*)            render ;;
+    esac
+done

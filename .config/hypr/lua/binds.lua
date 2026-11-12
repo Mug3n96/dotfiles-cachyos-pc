@@ -110,6 +110,19 @@ bind(mod .. " + CTRL + minus",  hl.dsp.window.move({ workspace = "special:scratc
 bind(mod .. " + mouse_down",    hl.dsp.workspace.toggle_special("scratch"))
 bind(mod .. " + mouse_up",      hl.dsp.workspace.toggle_special("scratch"))
 
+-- Mail: Thunderbird als Karte ein-/ausblenden (wie der Mail-Knopf in der Waybar)
+bind(mod .. " + M",             exec(scripts .. "waybar-mail toggle"))
+
+------------------------------------------------------------------------------
+-- Übersicht der belegten Workspaces mit Live-Vorschau (~/.config/quickshell/nord-overview)
+-- Öffnen zoomt den Bildschirm in seine Kachel, Klick zoomt die gewählte Kachel auf.
+------------------------------------------------------------------------------
+
+local overview = "qs ipc -p ~/.config/quickshell/nord-overview call overview toggle"
+bind(mod .. " + W",             exec(overview))
+-- Mit Touchpad (Laptop) zusätzlich per Geste:
+-- hl.gesture({ fingers = 4, direction = "down", action = function() hl.exec_cmd(overview) end })
+
 ------------------------------------------------------------------------------
 -- Medien · funktionieren auch bei gesperrtem Bildschirm
 ------------------------------------------------------------------------------

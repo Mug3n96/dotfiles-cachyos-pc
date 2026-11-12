@@ -43,6 +43,20 @@ hl.workspace_rule({
     gaps_out  = { top = 80, right = 100, bottom = 80, left = 100 },
 })
 
+-- Mail (Klick auf den Mail-Knopf in der Waybar, SUPER+M): Thunderbird als Karte.
+-- Etwas schmaler als das Scratchpad, damit Liste + Lesebereich gut proportioniert sind.
+hl.workspace_rule({
+    workspace = "special:mail",
+    gaps_out  = { top = 60, right = 160, bottom = 60, left = 160 },
+})
+-- Nur das Hauptfenster wandert dorthin (Startzustand unsichtbar). Verfassen-Fenster,
+-- Dialoge und mailto:-Links öffnen normal auf dem aktuellen Workspace.
+hl.window_rule({
+    name      = "mail-panel",
+    match     = { class = "^org\\.mozilla\\.Thunderbird$", initial_title = "^Mozilla Thunderbird$" },
+    workspace = "special:mail silent",
+})
+
 ------------------------------------------------------------------------------
 -- Fenster: allgemein
 ------------------------------------------------------------------------------
@@ -53,6 +67,13 @@ hl.window_rule({
     name   = "always-opaque",
     match  = { class = "^(BambuStudio|mpv|gimp.*|org\\.kde\\.krita|com\\.obsproject\\.Studio|steam_app_.*|overwatch\\.exe|gamescope|scrcpy|Waydroid|waydroid\\..*)$" },
     opaque = true,
+})
+-- Spiele als "game" kennzeichnen, auch wenn sie es nicht selbst melden. Nur dann
+-- greifen VRR (misc.vrr = 3) und Direct Scanout (render.direct_scanout = 2), look.lua.
+hl.window_rule({
+    name    = "game-content",
+    match   = { class = "^(steam_app_.*|gamescope|overwatch\\.exe)$" },
+    content = "game",
 })
 hl.window_rule({ name = "opaque-video", match = { content = "video" }, opaque = true })
 hl.window_rule({ name = "opaque-game",  match = { content = "game" },  opaque = true })

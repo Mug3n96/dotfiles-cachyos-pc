@@ -5,7 +5,7 @@
 > **English:** Personal dotfiles for a CachyOS desktop running **Hyprland ≥ 0.55 with the new Lua config**
 > (`hyprland.lua`; hyprlang/`hyprland.conf` was removed in 0.57). Comments and docs are in German, but the
 > config may be a useful reference if you are migrating: modular Lua setup, generated window rules, a Lua-based
-> "sort windows" bind, ported `hyprctl` scripts (`keyword` → `eval`), a Waybar scratchpad button, weather
+> "sort windows" bind, ported `hyprctl` scripts (`keyword` → `eval`), a Waybar scratchpad button, a Quickshell workspace overview with a zoom animation, Thunderbird as a pop-up mail panel, weather
 > (Open-Meteo, no API key) and media in the bar, and a local wallpaper animator. Hardware-specific bits (monitor `DP-3`, AMD GPU, Sunshine) need adapting.
 
 ![Desktop: zwei Terminals, Waybar mit drei Inseln](screenshots/desktop.webp)
@@ -40,8 +40,9 @@
 | `.config/hypr/lua/rules.lua` | Fenster-, Layer- und Workspace-Regeln, Workspace-Zuordnung, SUPER+O |
 | `.config/hypr/lua/binds.lua` | Tastenkürzel |
 | `.config/hypr/workspaces.lua` | **Welche App auf welchem Workspace landet** – die Datei zum Anfassen |
-| `.config/hypr/scripts/` | `hdr-toggle`, `screenshot`, `powermenu`, `clipboard`, `wallpaper`, `waybar-scratchpad`, `waybar-weather`, `waybar-media` |
-| `.config/waybar/` | Leiste: drei Inseln, Scratchpad-Knopf, in der Mitte Wetter · Uhr · Musik |
+| `.config/hypr/scripts/` | `hdr-toggle`, `screenshot`, `powermenu`, `clipboard`, `wallpaper`, `waybar-scratchpad`, `waybar-mail`, `waybar-weather`, `waybar-media` |
+| `.config/waybar/` | Leiste: drei Inseln, Scratchpad- und Mail-Knopf, in der Mitte Wetter · Uhr · Musik |
+| `.config/quickshell/nord-overview/` | Workspace-Übersicht mit Live-Vorschau und Zoom-Animation (`Super + W`) |
 | `.config/dunst/dunstrc` | Benachrichtigungen |
 | `.config/fuzzel/fuzzel.ini` | Launcher (auch für Power-Menü und Zwischenablage) |
 | `.config/alacritty/alacritty.toml` | Terminal |
@@ -99,6 +100,7 @@ Nicht im Repo: das Wallpaper-Bild selbst (Fan-Art) und die gerenderten Videos.
 | `Super + Tab` | Zum vorherigen Workspace |
 | `Super + Shift + Tab` | Fenster zum vorherigen Workspace, mitgehen |
 | `Super + Ctrl + Tab` | Fenster zum vorherigen Workspace, hierbleiben |
+| `Super + W` | Übersicht aller belegten Workspaces ([mehr](#workspace-übersicht)) |
 
 ### Scratchpad
 
@@ -126,6 +128,7 @@ Bebilderte Demo: [Funktionen im Alltag → Scratchpad](#scratchpad-1).
 | `Super + Ctrl + M` | Mixer (alsamixer) |
 | `Super + E` | Eigenes Brave-Fenster (Klasse `TFTExcel`) |
 | `Super + Shift + W` | Wallpaper: animiert ↔ Standbild |
+| `Super + M` | Mail (Thunderbird) ein-/ausblenden ([mehr](#mail-panel)) |
 
 ### Screenshots und Text
 
@@ -159,6 +162,7 @@ Funktionen auch bei gesperrtem Bildschirm. Lautstärke in 3-%-Schritten, maximal
 | Arch-Logo links | Launcher öffnen |
 | Workspace-Symbol | Zum Workspace wechseln |
 | Ebenen-Symbol (Scratchpad) | **Klick:** ein-/ausblenden · **Rechtsklick:** aktives Fenster hineinlegen. Die Zahl zeigt, wie viele Fenster darin liegen. |
+| Brief-Symbol (Mail, rechte Insel) | **Klick:** Thunderbird ein-/ausblenden (startet es, falls zu) · **Mittel-/Rechtsklick:** neue Mail. Gelb mit Zahl = neue Mails seit dem letzten Öffnen |
 | Uhr | Darüberfahren zeigt den Kalender mit Kalenderwochen |
 | Wetter (links der Uhr) | Darüberfahren zeigt gefühlte Temperatur, Wind, Sonnenauf- und -untergang, die nächsten 6 Stunden und 3 Tage, dazu den Pollenflug für heute und morgen (DWD) |
 | Musik (rechts der Uhr, nur wenn etwas läuft) | **Klick:** Pause/Weiter · **Mausrad:** vorheriger/nächster Titel. Zeigt, was gerade spielt, sonst das zuletzt Pausierte mit ▶. Gestoppt = weg |
@@ -218,6 +222,36 @@ weg. Ein leeres Scratchpad lässt sich nicht öffnen – der Knopf sagt dann, wi
 
 Der Knopf in der Leiste (Ebenen-Symbol, markiert) zeigt den Zustand: **gedimmt** = leer,
 **mit Zahl** = so viele Fenster liegen darin, **im Akzent hinterlegt** = gerade eingeblendet.
+
+### Workspace-Übersicht
+
+`Super + W` zeigt alle belegten Workspaces als Kacheln mit Live-Vorschau, darunter kleiner das
+Scratchpad und die Mail-Karte. Der aktuelle Bildschirm schrumpft dabei in seine Kachel, ein Klick
+lässt die gewählte Kachel wieder auf Vollbild wachsen. Klick auf ein bestimmtes Fenster fokussiert
+zusätzlich dieses. Tasten: Pfeile/`H J K L` wählen, `Enter` springt, `1 … 9` direkt, `Esc` schließt.
+
+Eigene Quickshell-Config (`.config/quickshell/nord-overview/shell.qml`), startet mit Hyprland und
+wartet im Hintergrund. Steuerbar auch per IPC, z. B. für Skripte:
+
+```sh
+qs ipc -p ~/.config/quickshell/nord-overview call overview toggle
+qs ipc -p ~/.config/quickshell/nord-overview call overview go 3            # oder special:scratch
+```
+
+Den Hintergrund zeichnet ImageMagick einmal vorab weich (`~/.cache/nord-overview/`), statt ihn in
+jedem Frame zu blurren. Das Bild dafür liefert `scripts/wallpaper path`. Änderungen an `shell.qml`
+lädt Quickshell selbst neu, nicht neu starten.
+
+### Mail-Panel
+
+Thunderbird startet beim Login unsichtbar und liegt als Karte im Special-Workspace `mail`, wie ein
+Tray-Programm: `Super + M` oder Klick auf das Brief-Symbol holt es über den aktuellen Workspace und
+wieder weg. Das Symbol wird gelb und zeigt eine Zahl, sobald Thunderbird neue Mails meldet (dafür
+müssen Benachrichtigungen in Thunderbird an sein).
+
+Nur das Hauptfenster kommt in die Karte; Verfassen-Fenster und `mailto:`-Links öffnen normal.
+Das **X** in Thunderbird beendet es ganz (unter Linux gibt es kein „in den Tray schließen“), zum
+Wegklicken also `Super + M` nehmen. Ist es doch zu, startet ein Klick aufs Symbol es neu.
 
 ### Zwischenablage-Verlauf
 
@@ -319,7 +353,8 @@ sudo pacman -S --needed hyprland xdg-desktop-portal-hyprland hyprpolkitagent \
     grim slurp swappy wl-clipboard cliphist jq socat python libnotify xdg-user-dirs \
     wireplumber playerctl pavucontrol network-manager-applet kvantum \
     adwaita-fonts ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols \
-    tesseract tesseract-data-deu tesseract-data-eng imagemagick
+    tesseract tesseract-data-deu tesseract-data-eng imagemagick \
+    quickshell thunderbird
 
 # AUR: Themes und Waybar-Git
 paru -S nordic-theme-git kvantum-theme-nordic-git nordzy-icon-theme nordzy-cursors waybar-git
