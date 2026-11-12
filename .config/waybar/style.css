@@ -107,6 +107,37 @@ window#waybar label {
   color: rgba(216, 222, 233, 0.88);
 }
 
+/* Mail (Thunderbird als Karte, scripts/waybar-mail): wie der Scratchpad-Knopf */
+#custom-mail {
+  padding: 0 10px;
+  margin: 5px 0;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+#custom-mail.off {
+  color: rgba(216, 222, 233, 0.4);
+}
+
+#custom-mail.idle {
+  color: rgba(216, 222, 233, 0.88);
+}
+
+#custom-mail.new {
+  color: #ebcb8b;
+}
+
+#custom-mail.open {
+  color: #88c0d0;
+  background: rgba(136, 192, 208, 0.16);
+}
+
+#custom-mail:hover {
+  color: #d8dee9;
+  background: rgba(216, 222, 233, 0.08);
+}
+
 /* Tray und Power durch feine Linien abgesetzt */
 #tray {
   padding: 0 12px 0 8px;

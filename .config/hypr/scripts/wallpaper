@@ -8,6 +8,7 @@
 #
 # Aufruf: wallpaper [start|animated|static|toggle]   (ohne Argument: start)
 #         wallpaper fps 55|165                       Bildrate der Animation wählen (55 = 165 Hz / 3)
+#         wallpaper path                             Pfad des Standbilds (für die Übersicht, quickshell/nord-overview)
 
 still="$HOME/Bilder/wallpaper.png"
 video="$HOME/Bilder/wallpaper-animiert/loop.mp4"
@@ -50,6 +51,8 @@ case "${1:-start}" in
         pkill -x mpvpaper; sleep 0.3
         echo animated > "$state"; animated
         notify-send -a Wallpaper -t 1500 "Wallpaper" "Animation mit $2 fps" ;;
+    path)
+        echo "$still"; exit 0 ;;
     *)
-        echo "Aufruf: $(basename "$0") [start|animated|static|toggle|fps N]" >&2; exit 1 ;;
+        echo "Aufruf: $(basename "$0") [start|animated|static|toggle|fps N|path]" >&2; exit 1 ;;
 esac

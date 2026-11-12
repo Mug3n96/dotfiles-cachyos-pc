@@ -43,6 +43,20 @@ hl.workspace_rule({
     gaps_out  = { top = 80, right = 100, bottom = 80, left = 100 },
 })
 
+-- Mail (Klick auf den Mail-Knopf in der Waybar, SUPER+M): Thunderbird als Karte.
+-- Etwas schmaler als das Scratchpad, damit Liste + Lesebereich gut proportioniert sind.
+hl.workspace_rule({
+    workspace = "special:mail",
+    gaps_out  = { top = 60, right = 160, bottom = 60, left = 160 },
+})
+-- Nur das Hauptfenster wandert dorthin (Startzustand unsichtbar). Verfassen-Fenster,
+-- Dialoge und mailto:-Links öffnen normal auf dem aktuellen Workspace.
+hl.window_rule({
+    name      = "mail-panel",
+    match     = { class = "^org\\.mozilla\\.Thunderbird$", initial_title = "^Mozilla Thunderbird$" },
+    workspace = "special:mail silent",
+})
+
 ------------------------------------------------------------------------------
 -- Fenster: allgemein
 ------------------------------------------------------------------------------

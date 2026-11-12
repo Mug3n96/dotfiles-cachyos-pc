@@ -75,6 +75,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("dunst")
     hl.exec_cmd("nm-applet")
     hl.exec_cmd("command -v cliphist >/dev/null && wl-paste --watch cliphist store")
+    hl.exec_cmd("command -v qs >/dev/null && qs -p ~/.config/quickshell/nord-overview -n -d") -- Workspace-Übersicht (SUPER+W)
+    hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/waybar-mail start")             -- Thunderbird unsichtbar (SUPER+M)
 
     -- Animiert, wenn mpvpaper da ist, sonst Standbild (scripts/wallpaper)
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/wallpaper start")

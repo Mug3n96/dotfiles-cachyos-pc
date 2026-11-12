@@ -13,7 +13,7 @@
 
   "modules-left": ["custom/launcher", "hyprland/workspaces", "custom/scratchpad", "hyprland/submap"],
   "modules-center": ["custom/weather", "clock", "custom/media-prev", "custom/media", "custom/media-next"],
-  "modules-right": ["tray", "pulseaudio", "cpu", "memory", "temperature", "network", "custom/power"],
+  "modules-right": ["custom/mail", "tray", "pulseaudio", "cpu", "memory", "temperature", "network", "custom/power"],
 
   "custom/launcher": {
     "format": "󰣇",
@@ -102,6 +102,15 @@
     "interval": "once",
     "signal": 8,
     "on-click": "~/.config/hypr/scripts/waybar-media next"
+  },
+
+  "custom/mail": {
+    "exec": "~/.config/hypr/scripts/waybar-mail",
+    "return-type": "json",
+    "restart-interval": 2,
+    "on-click": "~/.config/hypr/scripts/waybar-mail toggle",
+    "on-click-middle": "~/.config/hypr/scripts/waybar-mail compose",
+    "on-click-right": "~/.config/hypr/scripts/waybar-mail compose"
   },
 
   "tray": {
